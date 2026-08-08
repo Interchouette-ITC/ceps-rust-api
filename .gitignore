@@ -1,0 +1,5 @@
+/target
+/.cursor
+.github_credentials
+*.swp
+.DS_Store
