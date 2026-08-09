@@ -348,6 +348,87 @@ pub async fn cep78_set_variables(
     mutate!(state, body.envelope, |tx| client.set_variables(&args, tx))
 }
 
+#[derive(Deserialize)]
+pub struct MintSessionBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub owner: String,
+    pub token_meta_data: String,
+    pub token_hash: Option<String>,
+    pub session_wasm: String,
+}
+
+#[post("/v1/cep78/mint-session")]
+pub async fn cep78_mint_session(
+    state: web::Data<AppState>,
+    body: web::Json<MintSessionBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    let wasm = resolve_wasm(&state, &body.session_wasm)?;
+    mutate!(state, body.envelope, |tx| client.mint_session(
+        &body.owner,
+        &body.token_meta_data,
+        body.token_hash.as_deref(),
+        &wasm,
+        tx
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct TransferSessionBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub source: String,
+    pub target: String,
+    pub token_id: Option<String>,
+    pub token_hash: Option<String>,
+    pub session_wasm: String,
+}
+
+#[post("/v1/cep78/transfer-session")]
+pub async fn cep78_transfer_session(
+    state: web::Data<AppState>,
+    body: web::Json<TransferSessionBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
+    let wasm = resolve_wasm(&state, &body.session_wasm)?;
+    mutate!(state, body.envelope, |tx| client.transfer_session(
+        &body.source,
+        &body.target,
+        &token,
+        &wasm,
+        tx
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct UpdatedReceiptsBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub session_wasm: String,
+}
+
+#[post("/v1/cep78/updated-receipts")]
+pub async fn cep78_updated_receipts(
+    state: web::Data<AppState>,
+    body: web::Json<UpdatedReceiptsBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    let wasm = resolve_wasm(&state, &body.session_wasm)?;
+    mutate!(state, body.envelope, |tx| client
+        .updated_receipts(&wasm, tx))
+}
+
 macro_rules! qstr {
     ($name:ident, $path:literal, $method:ident) => {
         #[get($path)]
