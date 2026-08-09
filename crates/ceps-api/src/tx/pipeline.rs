@@ -88,13 +88,14 @@ pub async fn finalize_call(
     state: &AppState,
     core: &CepCore,
     envelope: &MutateEnvelope,
-    mut result: CallResult,
+    result: CallResult,
 ) -> Result<PipelineOutcome, ApiError> {
     envelope.validate_features()?;
 
     if matches!(envelope.submit, SubmitMode::Put) && state.config.sign_backend == SignBackend::Kms {
         #[cfg(feature = "sign-kms")]
         {
+            let mut result = result;
             let tx_json = result.transaction.take().ok_or_else(|| {
                 ApiError::Internal("make-only result missing transaction JSON".into())
             })?;
@@ -117,11 +118,15 @@ pub async fn finalize_call(
         }
         #[cfg(not(feature = "sign-kms"))]
         {
+            let _ = core;
             return Err(ApiError::FeatureDisabled(
                 "SIGN_BACKEND=kms requires feature sign-kms".into(),
             ));
         }
     }
+
+    #[cfg(not(feature = "sign-kms"))]
+    let _ = core;
 
     Ok(PipelineOutcome::from_call(result, envelope.submit))
 }

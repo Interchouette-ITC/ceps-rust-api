@@ -48,3 +48,7 @@ jobs:
         run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody -- --nocapture
       - name: feature-slice cep18+tx-return
         run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --no-default-features --features cep18,tx-return,swagger-ui -- --nocapture
+      - name: feature-slice cep78+tx-return
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --no-default-features --features cep78,tx-return,swagger-ui -- --nocapture
+      - name: feature-slice cep85+cep95
+        run: env -u CARGO_TARGET_DIR cargo check -p ceps-api --no-default-features --features cep85,cep95,swagger-ui

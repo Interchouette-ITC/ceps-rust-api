@@ -49,3 +49,4 @@ services:
       # Unset SIGN_BACKEND → none. For KMS: compose --profile kms and set:
       # - SIGN_BACKEND=kms
       # - KMS_URL=http://kms-secp256k1-api:4000
+      # LocalStack: compose --profile localstack (or kms). API only needs KMS_URL.

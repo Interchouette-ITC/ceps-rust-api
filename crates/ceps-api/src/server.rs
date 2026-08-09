@@ -110,12 +110,26 @@ pub fn create_app(
         app = svc!(
             app,
             crate::routes::cep78::cep78_install,
+            crate::routes::cep78::cep78_upgrade,
             crate::routes::cep78::cep78_mint,
             crate::routes::cep78::cep78_transfer,
             crate::routes::cep78::cep78_burn,
+            crate::routes::cep78::cep78_register_owner,
+            crate::routes::cep78::cep78_approve,
+            crate::routes::cep78::cep78_revoke,
+            crate::routes::cep78::cep78_set_approval_for_all,
+            crate::routes::cep78::cep78_set_token_metadata,
+            crate::routes::cep78::cep78_set_variables,
             crate::routes::cep78::cep78_collection_name,
+            crate::routes::cep78::cep78_collection_symbol,
             crate::routes::cep78::cep78_total_token_supply,
+            crate::routes::cep78::cep78_number_of_minted_tokens,
+            crate::routes::cep78::cep78_events_mode,
             crate::routes::cep78::cep78_owner_of,
+            crate::routes::cep78::cep78_balance_of,
+            crate::routes::cep78::cep78_is_approved_for_all,
+            crate::routes::cep78::cep78_get_approved,
+            crate::routes::cep78::cep78_metadata,
         );
     }
     #[cfg(feature = "cep85")]
@@ -123,11 +137,27 @@ pub fn create_app(
         app = svc!(
             app,
             crate::routes::cep85::cep85_install,
+            crate::routes::cep85::cep85_upgrade,
             crate::routes::cep85::cep85_mint,
+            crate::routes::cep85::cep85_batch_mint,
             crate::routes::cep85::cep85_transfer,
+            crate::routes::cep85::cep85_batch_transfer,
             crate::routes::cep85::cep85_burn,
+            crate::routes::cep85::cep85_batch_burn,
+            crate::routes::cep85::cep85_set_approval_for_all,
+            crate::routes::cep85::cep85_set_uri,
+            crate::routes::cep85::cep85_set_total_supply_of,
+            crate::routes::cep85::cep85_set_total_supply_of_batch,
+            crate::routes::cep85::cep85_change_security,
+            crate::routes::cep85::cep85_set_modalities,
             crate::routes::cep85::cep85_collection_name,
+            crate::routes::cep85::cep85_collection_uri,
             crate::routes::cep85::cep85_balance_of,
+            crate::routes::cep85::cep85_supply_of,
+            crate::routes::cep85::cep85_total_supply_of,
+            crate::routes::cep85::cep85_uri,
+            crate::routes::cep85::cep85_is_non_fungible,
+            crate::routes::cep85::cep85_is_approved_for_all,
         );
     }
     #[cfg(feature = "cep95")]
@@ -136,8 +166,21 @@ pub fn create_app(
             app,
             crate::routes::cep95::cep95_install,
             crate::routes::cep95::cep95_transfer_from,
+            crate::routes::cep95::cep95_safe_transfer_from,
+            crate::routes::cep95::cep95_approve,
+            crate::routes::cep95::cep95_revoke_approval,
+            crate::routes::cep95::cep95_approve_for_all,
+            crate::routes::cep95::cep95_revoke_approval_for_all,
+            crate::routes::cep95::cep95_mint,
+            crate::routes::cep95::cep95_burn,
             crate::routes::cep95::cep95_name,
+            crate::routes::cep95::cep95_symbol,
+            crate::routes::cep95::cep95_total_supply,
             crate::routes::cep95::cep95_owner_of,
+            crate::routes::cep95::cep95_balance_of,
+            crate::routes::cep95::cep95_get_approved,
+            crate::routes::cep95::cep95_is_approved_for_all,
+            crate::routes::cep95::cep95_token_metadata,
         );
     }
 
@@ -207,6 +250,7 @@ mod tests {
         assert_eq!(loc, Some("/docs/"));
     }
 
+    #[cfg(feature = "cep18")]
     #[actix_web::test]
     async fn put_transfer_without_signer_is_no_signer() {
         let app = test::init_service(create_app(AppState::new(Config::default()))).await;
@@ -227,7 +271,7 @@ mod tests {
         assert_eq!(body["code"], "no_signer");
     }
 
-    #[cfg(feature = "tx-return")]
+    #[cfg(all(feature = "cep18", feature = "tx-return"))]
     #[actix_web::test]
     async fn return_transfer_make_only_ok() {
         let app = test::init_service(create_app(AppState::new(Config::default()))).await;
