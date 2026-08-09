@@ -1,10 +1,14 @@
 //! Integration tests: pipeline matrix, feature imply/forbid, live NCTL smoke when reachable.
 
 use actix_web::test;
-use ceps_api::config::{Config, SignBackend};
+use ceps_api::config::Config;
 use ceps_api::server::create_app;
-use ceps_api::sign::LocalKeyring;
 use ceps_api::state::AppState;
+
+#[cfg(feature = "sign-local")]
+use ceps_api::config::SignBackend;
+#[cfg(feature = "sign-local")]
+use ceps_api::sign::LocalKeyring;
 
 fn app_none() -> AppState {
     AppState::new(Config::default())
@@ -23,6 +27,7 @@ async fn health_and_hello_features() {
     assert_eq!(body["features"]["cep18"], cfg!(feature = "cep18"));
 }
 
+#[cfg(feature = "cep18")]
 #[actix_web::test]
 async fn put_requires_signer() {
     let app = test::init_service(create_app(app_none())).await;
@@ -46,7 +51,7 @@ async fn put_requires_signer() {
     assert_eq!(body["code"], "no_signer");
 }
 
-#[cfg(feature = "tx-return")]
+#[cfg(all(feature = "cep18", feature = "tx-return"))]
 #[actix_web::test]
 async fn submit_return_make_only_transfer() {
     let app = test::init_service(create_app(app_none())).await;
@@ -150,7 +155,7 @@ async fn instances_register_list_delete() {
     assert_eq!(resp.status(), 204);
 }
 
-#[cfg(feature = "sign-local")]
+#[cfg(all(feature = "cep18", feature = "sign-local"))]
 #[actix_web::test]
 async fn local_put_missing_key_is_no_signer() {
     let mut cfg = Config::default();

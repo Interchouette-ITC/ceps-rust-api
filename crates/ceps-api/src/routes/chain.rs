@@ -3,10 +3,16 @@
 use crate::error::ApiError;
 use crate::routes::common::cep_core;
 use crate::state::AppState;
+#[cfg(any(feature = "custody", feature = "chain-put"))]
 use crate::tx::PipelineOutcome;
-use actix_web::{get, post, web, HttpResponse};
+#[cfg(any(feature = "custody", feature = "chain-put"))]
+use actix_web::post;
+use actix_web::{get, web, HttpResponse};
+#[cfg(feature = "custody")]
 use casper_rust_wasm_sdk::types::transaction_params::transaction_str_params::TransactionStrParams;
-use serde::{Deserialize, Serialize};
+#[cfg(any(feature = "custody", feature = "chain-put"))]
+use serde::Deserialize;
+use serde::Serialize;
 use serde_json::Value;
 use utoipa::ToSchema;
 

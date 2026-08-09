@@ -188,5 +188,9 @@ mod tests {
             assert!(list.contains(&"85"));
             assert!(list.contains(&"95"));
         }
+        #[cfg(not(feature = "ceps-all"))]
+        {
+            let _ = list;
+        }
     }
 }

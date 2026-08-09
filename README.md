@@ -62,7 +62,7 @@ make docker-run-kms
 Integration helpers under `crates/ceps-api/tests/integration/` load a faucet PEM from env (never from HTTP):
 
 ```bash
-export CEPS_FAUCET_PEM_PATH=/path/to/faucet/secret_key.pem
+export CEPS_FAUCET_PEM_PATH=/path/to/faucet/private.pem
 export CEPS_FAUCET_PUBLIC_KEY=01…   # optional; NCTL default known
 cargo test -p ceps-api --test live_bootstrap -- --nocapture
 ```

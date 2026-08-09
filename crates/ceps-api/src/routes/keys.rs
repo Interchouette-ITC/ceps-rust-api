@@ -1,7 +1,10 @@
 //! Custody key creation and KMS proxy routes.
 
+#[cfg(any(feature = "custody", feature = "sign-kms"))]
 use crate::error::ApiError;
+#[cfg(any(feature = "custody", feature = "sign-local", feature = "sign-kms"))]
 use crate::state::AppState;
+#[cfg(any(feature = "custody", feature = "sign-local", feature = "sign-kms"))]
 use actix_web::{get, post, web, HttpResponse};
 use serde::Serialize;
 use utoipa::ToSchema;
