@@ -57,6 +57,20 @@ impl ApiError {
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
+
+    pub fn from_cep(err: ceps_client::CepError) -> Self {
+        let msg = err.to_string();
+        if msg.to_ascii_lowercase().contains("hash") || msg.to_ascii_lowercase().contains("invalid")
+        {
+            Self::BadRequest(msg)
+        } else {
+            Self::Chain(msg)
+        }
+    }
+
+    pub fn internal(err: impl fmt::Display) -> Self {
+        Self::Internal(err.to_string())
+    }
 }
 
 impl ResponseError for ApiError {
@@ -69,13 +83,5 @@ impl ResponseError for ApiError {
             error: self.to_string(),
             code: self.code(),
         })
-    }
-}
-
-// Variants are used as routes land; keep constructors ready.
-#[allow(dead_code)]
-impl ApiError {
-    pub fn internal(err: impl fmt::Display) -> Self {
-        Self::Internal(err.to_string())
     }
 }

@@ -1,8 +1,9 @@
-//! Environment configuration. No PEM, faucet, or bootstrap key vars.
+//! Environment configuration. No PEM, faucet, or bootstrap key vars in HTTP.
 
 use crate::constants::{
     DEFAULT_APP_ADDR, DEFAULT_APP_PORT, DEFAULT_CHAIN_NAME, DEFAULT_RPC_URL, DEFAULT_SSE_URL,
 };
+use crate::sign::LocalKeyring;
 use std::env;
 use std::path::PathBuf;
 
@@ -17,7 +18,6 @@ pub enum SignBackend {
 
 impl SignBackend {
     /// Parse `SIGN_BACKEND`. Unset, empty, or `none` → [`SignBackend::None`].
-    /// Operators do not need to set the variable for the no-signer socle.
     #[must_use]
     pub fn from_env() -> Self {
         match env::var("SIGN_BACKEND") {
@@ -58,14 +58,13 @@ pub struct Config {
     pub rpc_url: String,
     pub sse_url: String,
     pub chain_name: String,
-    /// Empty when KMS is not configured (normal for `SIGN_BACKEND` none).
     pub kms_url: String,
     pub sign_backend: SignBackend,
     pub wasm_root: PathBuf,
+    pub local_keys: LocalKeyring,
 }
 
 impl Config {
-    /// Load from process environment (and dotenv if loaded by caller).
     #[must_use]
     pub fn from_env() -> Self {
         let wasm_root =
@@ -73,6 +72,24 @@ impl Config {
         let kms_url = env::var("KMS_URL")
             .map(|s| s.trim().to_string())
             .unwrap_or_default();
+        let local_keys = env::var("LOCAL_KEYS_JSON")
+            .ok()
+            .and_then(|raw| LocalKeyring::from_json(&raw).ok())
+            .unwrap_or_default();
+
+        let sign_backend = SignBackend::from_env();
+        if sign_backend == SignBackend::Kms && kms_url.is_empty() {
+            tracing::warn!("SIGN_BACKEND=kms but KMS_URL is empty");
+        }
+        if sign_backend == SignBackend::Local && local_keys.is_empty() {
+            tracing::warn!("SIGN_BACKEND=local but LOCAL_KEYS_JSON keyring is empty");
+        }
+        if sign_backend == SignBackend::Local && !cfg!(feature = "sign-local") {
+            tracing::warn!("SIGN_BACKEND=local but feature sign-local is off");
+        }
+        if sign_backend == SignBackend::Kms && !cfg!(feature = "sign-kms") {
+            tracing::warn!("SIGN_BACKEND=kms but feature sign-kms is off");
+        }
 
         Self {
             addr: env::var("APP_ADDR").unwrap_or_else(|_| DEFAULT_APP_ADDR.to_string()),
@@ -85,8 +102,9 @@ impl Config {
             chain_name: env::var("CEPS_CHAIN_NAME")
                 .unwrap_or_else(|_| DEFAULT_CHAIN_NAME.to_string()),
             kms_url,
-            sign_backend: SignBackend::from_env(),
+            sign_backend,
             wasm_root,
+            local_keys,
         }
     }
 
@@ -117,6 +135,7 @@ impl Default for Config {
             kms_url: String::new(),
             sign_backend: SignBackend::None,
             wasm_root: default_wasm_root(),
+            local_keys: LocalKeyring::new(),
         }
     }
 }
@@ -162,7 +181,7 @@ mod tests {
     #[test]
     fn enabled_ceps_lists_compiled_features() {
         let list = enabled_cep_features();
-        #[cfg(feature = "all")]
+        #[cfg(feature = "ceps-all")]
         {
             assert!(list.contains(&"18"));
             assert!(list.contains(&"78"));

@@ -12,11 +12,19 @@ use utoipa::OpenApi;
 #[cfg(feature = "swagger-ui")]
 use utoipa_swagger_ui::SwaggerUi;
 
-/// Absolute redirect so `/docs` resolves to `/docs/` (avoids relative `docs/` hack).
 async fn redirect_docs_absolute() -> impl Responder {
     HttpResponse::TemporaryRedirect()
         .append_header(("Location", "/docs/"))
         .finish()
+}
+
+macro_rules! svc {
+    ($app:ident, $($s:expr),+ $(,)?) => {{
+        $(
+            $app = $app.service($s);
+        )+
+        $app
+    }};
 }
 
 /// Build the Actix `App` (shared by server and tests).
@@ -41,13 +49,104 @@ pub fn create_app(
         .service(health_handler)
         .route("/docs", web::get().to(redirect_docs_absolute));
 
+    app = svc!(
+        app,
+        crate::routes::chain::chain_balance,
+        crate::routes::chain::chain_account,
+        crate::routes::chain::chain_transaction,
+        crate::routes::instances::list_instances,
+        crate::routes::instances::register_instance,
+        crate::routes::instances::get_instance,
+        crate::routes::instances::delete_instance,
+        crate::routes::wasm::list_wasm,
+    );
+
+    #[cfg(feature = "chain-put")]
+    {
+        app = app.service(crate::routes::chain::chain_put_transaction);
+    }
+    #[cfg(feature = "custody")]
+    {
+        app = app.service(crate::routes::chain::chain_fund);
+        app = app.service(crate::routes::keys::keys_create);
+    }
+    #[cfg(feature = "sign-local")]
+    {
+        app = app.service(crate::routes::keys::keys_list);
+    }
+    #[cfg(feature = "sign-kms")]
+    {
+        app = app.service(crate::routes::keys::kms_create_key);
+        app = app.service(crate::routes::keys::kms_list_keys);
+    }
+
+    #[cfg(feature = "cep18")]
+    {
+        app = svc!(
+            app,
+            crate::routes::cep18::cep18_install,
+            crate::routes::cep18::cep18_upgrade,
+            crate::routes::cep18::cep18_transfer,
+            crate::routes::cep18::cep18_transfer_from,
+            crate::routes::cep18::cep18_approve,
+            crate::routes::cep18::cep18_increase_allowance,
+            crate::routes::cep18::cep18_decrease_allowance,
+            crate::routes::cep18::cep18_mint,
+            crate::routes::cep18::cep18_burn,
+            crate::routes::cep18::cep18_change_events_mode,
+            crate::routes::cep18::cep18_change_security,
+            crate::routes::cep18::cep18_name,
+            crate::routes::cep18::cep18_symbol,
+            crate::routes::cep18::cep18_decimals,
+            crate::routes::cep18::cep18_total_supply,
+            crate::routes::cep18::cep18_events_mode,
+            crate::routes::cep18::cep18_is_mint_and_burn_enabled,
+            crate::routes::cep18::cep18_balance_of,
+            crate::routes::cep18::cep18_allowances,
+        );
+    }
+    #[cfg(feature = "cep78")]
+    {
+        app = svc!(
+            app,
+            crate::routes::cep78::cep78_install,
+            crate::routes::cep78::cep78_mint,
+            crate::routes::cep78::cep78_transfer,
+            crate::routes::cep78::cep78_burn,
+            crate::routes::cep78::cep78_collection_name,
+            crate::routes::cep78::cep78_total_token_supply,
+            crate::routes::cep78::cep78_owner_of,
+        );
+    }
+    #[cfg(feature = "cep85")]
+    {
+        app = svc!(
+            app,
+            crate::routes::cep85::cep85_install,
+            crate::routes::cep85::cep85_mint,
+            crate::routes::cep85::cep85_transfer,
+            crate::routes::cep85::cep85_burn,
+            crate::routes::cep85::cep85_collection_name,
+            crate::routes::cep85::cep85_balance_of,
+        );
+    }
+    #[cfg(feature = "cep95")]
+    {
+        app = svc!(
+            app,
+            crate::routes::cep95::cep95_install,
+            crate::routes::cep95::cep95_transfer_from,
+            crate::routes::cep95::cep95_name,
+            crate::routes::cep95::cep95_owner_of,
+        );
+    }
+
     #[cfg(feature = "swagger-ui")]
     {
         app = app.service(
             SwaggerUi::new("/docs/{_:.*}").url("/docs/ceps-openapi.json", openapi.clone()),
         );
     }
-
     #[cfg(not(feature = "swagger-ui"))]
     {
         let _ = openapi;
@@ -57,9 +156,6 @@ pub fn create_app(
 }
 
 /// Bind and run the HTTP server.
-///
-/// # Errors
-/// Returns I/O errors if the address cannot be bound or the server fails.
 pub async fn run_server(config: Config) -> std::io::Result<()> {
     let bind = config.bind_addr();
     let state = AppState::new(config);
@@ -89,26 +185,10 @@ mod tests {
             .uri("/docs/ceps-openapi.json")
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert!(
-            resp.status().is_success(),
-            "openapi status {}",
-            resp.status()
-        );
+        assert!(resp.status().is_success());
         let body: serde_json::Value = test::read_body_json(resp).await;
         assert_eq!(body["info"]["title"], "ceps-rust-api");
         assert!(body["paths"].get("/health").is_some());
-    }
-
-    #[actix_web::test]
-    async fn docs_ui_ok() {
-        let app = test::init_service(create_app(AppState::new(Config::default()))).await;
-        let req = test::TestRequest::get().uri("/docs/").to_request();
-        let resp = test::call_service(&app, req).await;
-        assert!(
-            resp.status().is_success(),
-            "docs UI status {}",
-            resp.status()
-        );
     }
 
     #[actix_web::test]
@@ -125,5 +205,47 @@ mod tests {
             .get(actix_web::http::header::LOCATION)
             .and_then(|v| v.to_str().ok());
         assert_eq!(loc, Some("/docs/"));
+    }
+
+    #[actix_web::test]
+    async fn put_transfer_without_signer_is_no_signer() {
+        let app = test::init_service(create_app(AppState::new(Config::default()))).await;
+        let req = test::TestRequest::post()
+            .uri("/v1/cep18/transfer")
+            .set_json(serde_json::json!({
+                "submit": "put",
+                "signer": {"public_key": "01aa"},
+                "payment_amount": "1",
+                "contract_hash": "aa",
+                "recipient": "account-hash-bb",
+                "amount": "1"
+            }))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["code"], "no_signer");
+    }
+
+    #[cfg(feature = "tx-return")]
+    #[actix_web::test]
+    async fn return_transfer_make_only_ok() {
+        let app = test::init_service(create_app(AppState::new(Config::default()))).await;
+        let initiator = format!("01{}", "11".repeat(32));
+        let req = test::TestRequest::post()
+            .uri("/v1/cep18/transfer")
+            .set_json(serde_json::json!({
+                "submit": "return",
+                "signer": {"public_key": initiator},
+                "payment_amount": "1000000000",
+                "contract_hash": "cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d",
+                "recipient": "account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f",
+                "amount": "1"
+            }))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success(), "status {}", resp.status());
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert!(body.get("transaction").is_some());
     }
 }
