@@ -3,3 +3,4 @@
 .github_credentials
 *.swp
 .DS_Store
+.env

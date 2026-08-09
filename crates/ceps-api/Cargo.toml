@@ -1,0 +1,43 @@
+[package]
+name = "ceps-api"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[lib]
+name = "ceps_api"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ceps-rust-api"
+path = "src/main.rs"
+
+[features]
+default = ["all", "swagger-ui"]
+swagger-ui = ["dep:utoipa-swagger-ui"]
+cep18 = []
+cep78 = []
+cep85 = []
+cep95 = []
+all = ["cep18", "cep78", "cep85", "cep95"]
+
+[dependencies]
+actix-web = { workspace = true }
+actix-cors = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true, optional = true }
+thiserror = { workspace = true }
+dotenvy = { workspace = true }
+
+[dev-dependencies]
+actix-web = { workspace = true, features = ["macros"] }

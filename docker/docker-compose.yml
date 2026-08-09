@@ -1,0 +1,51 @@
+# Local stack: optional KMS (+ LocalStack) from published images + this API.
+# Point CEPS_RPC_URL / CEPS_SSE_URL at a reachable Casper node (e.g. NCTL on host).
+# API socle does not require KMS; use profile `kms` when SIGN_BACKEND=kms.
+services:
+  kms-localstack:
+    image: ${KMS_LOCALSTACK_IMAGE:-interchouette/kms-localstack:latest}
+    container_name: ceps-kms-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - AWS_REGION=eu-west-3
+      - SERVICES=kms
+      - DEBUG=0
+      - LOCALSTACK_PERSISTENCE=0
+      - GATEWAY_LISTEN=4566
+    profiles:
+      - localstack
+      - kms
+
+  kms-secp256k1-api:
+    image: ${KMS_IMAGE:-interchouette/kms-secp256k1-api:latest}
+    container_name: ceps-kms-api
+    ports:
+      - "4000:4000"
+    environment:
+      - APP_PORT=4000
+      - TESTING_MODE=true
+      - BLOCKCHAIN_MODE=casper
+      - LIST_MODE=true
+      - DELETE_MODE=true
+    profiles:
+      - kms
+
+  ceps-rust-api:
+    image: ${CEPS_API_IMAGE:-interchouette/ceps-rust-api:latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ceps-rust-api
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ADDR=0.0.0.0
+      - APP_PORT=8080
+      - CEPS_RPC_URL=${CEPS_RPC_URL:-http://host.docker.internal:11101}
+      - CEPS_SSE_URL=${CEPS_SSE_URL:-http://host.docker.internal:18101/events}
+      - CEPS_CHAIN_NAME=${CEPS_CHAIN_NAME:-casper-net-1}
+      - RUST_LOG=info
+      # Unset SIGN_BACKEND → none. For KMS: compose --profile kms and set:
+      # - SIGN_BACKEND=kms
+      # - KMS_URL=http://kms-secp256k1-api:4000

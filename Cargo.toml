@@ -1,0 +1,31 @@
+[workspace]
+members = ["crates/ceps-api"]
+default-members = ["crates/ceps-api"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+description = "HTTP API for Casper CEP-18, CEP-78, CEP-85, and CEP-95 (optional local or KMS signing)."
+readme = "README.md"
+homepage = "https://github.com/Interchouette-ITC/ceps-rust-api"
+repository = "https://github.com/Interchouette-ITC/ceps-rust-api"
+authors = ["3099551+gRoussac@users.noreply.github.com"]
+license-file = "LICENSE"
+
+[workspace.dependencies]
+actix-web = { version = "4.9", default-features = false, features = ["macros"] }
+actix-cors = { version = "0.7", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+utoipa = { version = "5", features = ["actix_extras"] }
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
+thiserror = "2"
+dotenvy = "0.15"
+
+[profile.release]
+codegen-units = 1
+lto = true
