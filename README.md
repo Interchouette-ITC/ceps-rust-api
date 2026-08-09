@@ -45,3 +45,26 @@ env -u CARGO_TARGET_DIR -u PLAYWRIGHT_BROWSERS_PATH make build
 ## Status
 
 Socle: health, hello, instances, wasm list, chain queries. Add-ons: sign backends, tx-return, chain-put, custody, CEP routes behind features. KMS is Docker HTTP only.
+
+## Docker compose
+
+```bash
+# API only (point CEPS_RPC_URL at a reachable node)
+make docker-run
+
+# API + KMS peer
+make docker-run-kms
+# then set SIGN_BACKEND=kms and KMS_URL=http://kms-secp256k1-api:4000 on the API service
+```
+
+## Live harness (tests only)
+
+Integration helpers under `crates/ceps-api/tests/integration/` load a faucet PEM from env (never from HTTP):
+
+```bash
+export CEPS_FAUCET_PEM_PATH=/path/to/faucet/secret_key.pem
+export CEPS_FAUCET_PUBLIC_KEY=01…   # optional; NCTL default known
+cargo test -p ceps-api --test live_bootstrap -- --nocapture
+```
+
+Product code under `crates/` never imports faucet or NCTL concepts.
