@@ -121,6 +121,13 @@ macro_rules! mutate {
     }};
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep18/install",
+    request_body = InstallBody,
+    responses((status = 200, description = "Install pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-18"
+)]
 #[post("/v1/cep18/install")]
 pub async fn cep18_install(
     state: web::Data<AppState>,
@@ -158,6 +165,13 @@ pub async fn cep18_upgrade(
     mutate!(state, body.envelope, |tx| client.upgrade(&args, &wasm, tx))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep18/transfer",
+    request_body = TransferBody,
+    responses((status = 200, description = "Transfer pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-18"
+)]
 #[post("/v1/cep18/transfer")]
 pub async fn cep18_transfer(
     state: web::Data<AppState>,
@@ -414,6 +428,16 @@ pub async fn cep18_is_mint_and_burn_enabled(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep18/{contract_hash}/balance-of/{owner}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("owner" = String, Path, description = "Owner key or account-hash")
+    ),
+    responses((status = 200, description = "Balance string")),
+    tag = "CEP-18"
+)]
 #[get("/v1/cep18/{contract_hash}/balance-of/{owner}")]
 pub async fn cep18_balance_of(
     state: web::Data<AppState>,

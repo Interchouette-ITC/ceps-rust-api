@@ -278,3 +278,74 @@ async fn live_kms_list_keys_when_url_set() {
         resp.status()
     );
 }
+
+#[cfg(not(feature = "chain-put"))]
+#[actix_web::test]
+async fn chain_put_absent_when_feature_off() {
+    let app = test::init_service(create_app(app_none())).await;
+    let resp = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/chain/put-transaction")
+            .set_json(serde_json::json!({
+                "transaction": {"x": 1},
+                "wait": "accepted"
+            }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(resp.status(), 404);
+}
+
+#[cfg(all(feature = "cep18", not(feature = "tx-return")))]
+#[actix_web::test]
+async fn submit_return_feature_disabled() {
+    let app = test::init_service(create_app(app_none())).await;
+    let initiator = format!("01{}", "11".repeat(32));
+    let resp = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/cep18/transfer")
+            .set_json(serde_json::json!({
+                "submit": "return",
+                "signer": {"public_key": initiator},
+                "payment_amount": "1",
+                "contract_hash": "cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d",
+                "recipient": "account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f",
+                "amount": "1"
+            }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(resp.status(), 400);
+    let body: serde_json::Value = test::read_body_json(resp).await;
+    assert_eq!(body["code"], "feature_disabled");
+}
+
+#[cfg(feature = "swagger-ui")]
+#[actix_web::test]
+async fn openapi_lists_platform_and_cep18_when_enabled() {
+    let app = test::init_service(create_app(app_none())).await;
+    let resp = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/docs/ceps-openapi.json")
+            .to_request(),
+    )
+    .await;
+    assert!(resp.status().is_success());
+    let body: serde_json::Value = test::read_body_json(resp).await;
+    let paths = body["paths"].as_object().expect("paths");
+    assert!(paths.contains_key("/v1/instances/{id}"));
+    assert!(paths.contains_key("/v1/chain/balance/{public_key}"));
+    #[cfg(feature = "cep18")]
+    {
+        assert!(paths.contains_key("/v1/cep18/install"));
+        assert!(paths.contains_key("/v1/cep18/transfer"));
+        assert!(paths.contains_key("/v1/cep18/{contract_hash}/balance-of/{owner}"));
+    }
+    #[cfg(feature = "chain-put")]
+    assert!(paths.contains_key("/v1/chain/put-transaction"));
+    #[cfg(not(feature = "chain-put"))]
+    assert!(!paths.contains_key("/v1/chain/put-transaction"));
+}

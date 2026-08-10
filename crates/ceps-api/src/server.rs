@@ -2,12 +2,11 @@
 
 use crate::config::Config;
 use crate::middleware::cors::demo_cors;
-use crate::openapi::ApiDoc;
+use crate::openapi::build_openapi;
 use crate::routes::{health_handler, hello_handler};
 use crate::state::AppState;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use tracing::info;
-use utoipa::OpenApi;
 
 #[cfg(feature = "swagger-ui")]
 use utoipa_swagger_ui::SwaggerUi;
@@ -40,7 +39,7 @@ pub fn create_app(
         InitError = (),
     >,
 > {
-    let openapi = ApiDoc::openapi();
+    let openapi = build_openapi();
 
     let mut app = App::new()
         .app_data(web::Data::new(state))
@@ -236,6 +235,7 @@ mod tests {
         let body: serde_json::Value = test::read_body_json(resp).await;
         assert_eq!(body["info"]["title"], "ceps-rust-api");
         assert!(body["paths"].get("/health").is_some());
+        assert!(body["paths"].get("/v1/instances/{id}").is_some());
     }
 
     #[actix_web::test]

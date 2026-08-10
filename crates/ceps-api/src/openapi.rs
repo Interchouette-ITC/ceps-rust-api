@@ -15,6 +15,8 @@ use utoipa::OpenApi;
         crate::routes::chain::chain_transaction,
         crate::routes::instances::list_instances,
         crate::routes::instances::register_instance,
+        crate::routes::instances::get_instance,
+        crate::routes::instances::delete_instance,
         crate::routes::wasm::list_wasm,
     ),
     components(schemas(
@@ -24,6 +26,11 @@ use utoipa::OpenApi;
         PipelineOutcome,
         crate::registry::InstanceRecord,
         crate::routes::wasm::WasmEntry,
+        crate::tx::MutateEnvelope,
+        crate::tx::SubmitMode,
+        crate::tx::WaitMode,
+        crate::tx::SignerRef,
+        crate::routes::chain::BalanceResult,
     )),
     tags(
         (name = "Health", description = "Liveness and hello"),
@@ -43,3 +50,59 @@ use utoipa::OpenApi;
     )
 )]
 pub struct ApiDoc;
+
+#[cfg(feature = "chain-put")]
+#[derive(OpenApi)]
+#[openapi(paths(crate::routes::chain::chain_put_transaction))]
+struct ApiDocChainPut;
+
+#[cfg(feature = "custody")]
+#[derive(OpenApi)]
+#[openapi(paths(crate::routes::chain::chain_fund, crate::routes::keys::keys_create,))]
+struct ApiDocCustody;
+
+#[cfg(feature = "sign-local")]
+#[derive(OpenApi)]
+#[openapi(paths(crate::routes::keys::keys_list))]
+struct ApiDocSignLocal;
+
+#[cfg(feature = "sign-kms")]
+#[derive(OpenApi)]
+#[openapi(paths(
+    crate::routes::keys::kms_create_key,
+    crate::routes::keys::kms_list_keys,
+))]
+struct ApiDocSignKms;
+
+#[cfg(feature = "cep18")]
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        crate::routes::cep18::cep18_install,
+        crate::routes::cep18::cep18_transfer,
+        crate::routes::cep18::cep18_balance_of,
+    ),
+    components(schemas(
+        crate::routes::cep18::InstallBody,
+        crate::routes::cep18::TransferBody,
+        crate::routes::cep18::ContractQuery,
+    ))
+)]
+struct ApiDocCep18;
+
+/// Build the OpenAPI document for the compiled feature set.
+#[must_use]
+pub fn build_openapi() -> utoipa::openapi::OpenApi {
+    let mut doc = ApiDoc::openapi();
+    #[cfg(feature = "chain-put")]
+    doc.merge(ApiDocChainPut::openapi());
+    #[cfg(feature = "custody")]
+    doc.merge(ApiDocCustody::openapi());
+    #[cfg(feature = "sign-local")]
+    doc.merge(ApiDocSignLocal::openapi());
+    #[cfg(feature = "sign-kms")]
+    doc.merge(ApiDocSignKms::openapi());
+    #[cfg(feature = "cep18")]
+    doc.merge(ApiDocCep18::openapi());
+    doc
+}
