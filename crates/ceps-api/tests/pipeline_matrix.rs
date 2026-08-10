@@ -215,3 +215,66 @@ async fn live_chain_account_when_rpc_up() {
         resp.status()
     );
 }
+
+#[cfg(feature = "sign-kms")]
+#[actix_web::test]
+async fn kms_proxy_create_key_via_wiremock() {
+    use ceps_api::config::SignBackend;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/createKey"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "public_key": "0202ccddeeff00112233445566778899aabbccddeeff00112233445566778899aabb",
+            "address": "account-hash-demo"
+        })))
+        .mount(&server)
+        .await;
+
+    let mut cfg = Config::default();
+    cfg.sign_backend = SignBackend::Kms;
+    cfg.kms_url = server.uri();
+    let app = test::init_service(create_app(AppState::new(cfg))).await;
+
+    let resp = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/kms/create-key")
+            .to_request(),
+    )
+    .await;
+    assert!(resp.status().is_success(), "status {}", resp.status());
+    let body: serde_json::Value = test::read_body_json(resp).await;
+    assert!(body["public_key"].as_str().unwrap().starts_with("02"));
+}
+
+#[cfg(feature = "sign-kms")]
+#[actix_web::test]
+async fn live_kms_list_keys_when_url_set() {
+    let Ok(url) = std::env::var("KMS_URL") else {
+        eprintln!("skip live KMS: set KMS_URL to hit a real peer");
+        return;
+    };
+    if url.trim().is_empty() {
+        eprintln!("skip live KMS: KMS_URL empty");
+        return;
+    }
+    let mut cfg = Config::default();
+    cfg.sign_backend = ceps_api::config::SignBackend::Kms;
+    cfg.kms_url = url;
+    let app = test::init_service(create_app(AppState::new(cfg))).await;
+    let resp = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/v1/kms/list-keys")
+            .to_request(),
+    )
+    .await;
+    assert!(
+        resp.status().is_success() || resp.status().as_u16() == 502,
+        "unexpected {}",
+        resp.status()
+    );
+}

@@ -184,6 +184,7 @@ pub fn create_app(
             crate::routes::cep95::cep95_get_approved,
             crate::routes::cep95::cep95_is_approved_for_all,
             crate::routes::cep95::cep95_token_metadata,
+            crate::routes::cep95::cep95_bind_odra_install,
         );
     }
 
