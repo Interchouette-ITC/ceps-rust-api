@@ -207,7 +207,7 @@ fn load_local_keys(backend: SignBackend) -> Result<LocalKeyring, String> {
 }
 
 fn default_wasm_root() -> PathBuf {
-    // Fetched tip contracts live in this repo (`make fetch-wasm` → tests/wasm/).
+    // In-tree tip contracts (`tests/wasm/`). Refresh with `make fetch-wasm`.
     let from_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/wasm");
     if from_crate.is_dir() {
         return from_crate;

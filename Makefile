@@ -29,7 +29,7 @@ CEPS_CONTRACTS_TAG ?= dev-preview
 help:
 	@echo "ceps-rust-api targets"
 	@echo "  make build / test / verify / verify-slices / run"
-	@echo "  make fetch-wasm          # download tip CEP contracts into tests/wasm/"
+	@echo "  make fetch-wasm          # refresh tip CEP contracts into tests/wasm/"
 	@echo "  make export-local-keys   # print LOCAL_KEYS_JSON (NCTL users; lab only)"
 	@echo "  make run-local           # run with SIGN_BACKEND=local + exported keys"
 	@echo "  Features: FEATURES=$(FEATURES)"
