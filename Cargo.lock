@@ -485,7 +485,6 @@ version = "0.1.0"
 dependencies = [
  "actix-cors",
  "actix-web",
- "casper-rust-wasm-sdk",
  "ceps-client",
  "dotenvy",
  "parking_lot",

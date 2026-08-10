@@ -141,9 +141,11 @@ async fn instances_register_list_delete() {
 #[cfg(all(feature = "cep18", feature = "sign-local"))]
 #[actix_web::test]
 async fn local_put_missing_key_is_no_signer() {
-    let mut cfg = Config::default();
-    cfg.sign_backend = SignBackend::Local;
-    cfg.local_keys = LocalKeyring::new();
+    let cfg = Config {
+        sign_backend: SignBackend::Local,
+        local_keys: LocalKeyring::new(),
+        ..Default::default()
+    };
     let app = test::init_service(create_app(AppState::new(cfg))).await;
     let resp = test::call_service(
         &app,
@@ -186,9 +188,11 @@ async fn kms_sign_client_via_wiremock() {
         .mount(&server)
         .await;
 
-    let mut cfg = Config::default();
-    cfg.sign_backend = SignBackend::Kms;
-    cfg.kms_url = server.uri();
+    let cfg = Config {
+        sign_backend: SignBackend::Kms,
+        kms_url: server.uri(),
+        ..Default::default()
+    };
     let _state = AppState::new(cfg);
     let client = KmsClient::new(server.uri());
     let signed = client

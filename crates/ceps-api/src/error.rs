@@ -58,13 +58,31 @@ impl ApiError {
         }
     }
 
-    pub fn from_cep(err: ceps_client::CepError) -> Self {
-        let msg = err.to_string();
-        if msg.to_ascii_lowercase().contains("hash") || msg.to_ascii_lowercase().contains("invalid")
-        {
-            Self::BadRequest(msg)
-        } else {
-            Self::Chain(msg)
+    pub fn from_cep(err: ceps_client::CEPError) -> Self {
+        use ceps_client::CEPError;
+        match err {
+            CEPError::InvalidUrl(m)
+            | CEPError::InvalidHash(m)
+            | CEPError::MissingArgument(m)
+            | CEPError::InvalidArgument(m)
+            | CEPError::Decode(m) => Self::BadRequest(m),
+            CEPError::ContractHashMissing => Self::BadRequest("contract hash is not set".into()),
+            CEPError::EmptyQuery(m) => Self::NotFound(m),
+            CEPError::Execution { message, .. } => Self::TxFailed(message),
+            CEPError::WaitFailed(m) => Self::Chain(m),
+            CEPError::Sdk(e) => Self::Chain(e.to_string()),
+            CEPError::Io(e) => Self::Internal(e.to_string()),
+            CEPError::Other(m) => {
+                let lower = m.to_ascii_lowercase();
+                if lower.contains("parse")
+                    || lower.contains("invalid")
+                    || lower.contains("serialize")
+                {
+                    Self::BadRequest(m)
+                } else {
+                    Self::Chain(m)
+                }
+            }
         }
     }
 

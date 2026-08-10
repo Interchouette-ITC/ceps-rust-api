@@ -5,7 +5,7 @@ use crate::error::ApiError;
 use crate::sign::LocalKeyring;
 use crate::state::AppState;
 use crate::tx::{MutateEnvelope, SubmitMode};
-use ceps_client::{CallResult, CepCore, TransactionParams};
+use ceps_client::{CEPClient, CallResult, TransactionParams};
 use serde::Serialize;
 use serde_json::Value;
 use utoipa::ToSchema;
@@ -86,7 +86,7 @@ pub fn build_transaction_params(
 /// After a CEP client call: for KMS put, sign+put+wait; otherwise map CallResult.
 pub async fn finalize_call(
     state: &AppState,
-    core: &CepCore,
+    core: &CEPClient,
     envelope: &MutateEnvelope,
     result: CallResult,
 ) -> Result<PipelineOutcome, ApiError> {
@@ -106,14 +106,9 @@ pub async fn finalize_call(
             let signed = kms
                 .sign_transaction(&envelope.signer.public_key, &tx_json)
                 .await?;
-            result = crate::tx::put_signed_transaction(core, &signed).await?;
-            if envelope.wait_on_put() {
-                let event = core
-                    .wait_transaction(&result.transaction_hash, None)
-                    .await
-                    .map_err(|e| ApiError::Chain(e.to_string()))?;
-                result = result.with_execution(event);
-            }
+            let signed_tx = signed.get("transaction").cloned().unwrap_or(signed);
+            let wait = envelope.wait_on_put();
+            let result = crate::tx::put_signed_transaction(core, &signed_tx, wait).await?;
             return Ok(PipelineOutcome::from_call(result, SubmitMode::Put));
         }
         #[cfg(not(feature = "sign-kms"))]

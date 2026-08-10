@@ -1,7 +1,8 @@
 //! Chain put-transaction route (feature `chain-put`).
 //!
 //! Account/balance/transaction *queries* are not part of this CEP API.
-//! Use the node RPC or CEP wait/`CallResult` for transaction outcome.
+//! Transaction outcome comes from CEP `wait` / `CallResult` (see `CEPClient::wait_transaction`
+//! when you put with wait disabled).
 
 #[cfg(feature = "chain-put")]
 use crate::error::ApiError;
@@ -42,15 +43,9 @@ pub async fn chain_put_transaction(
     state: web::Data<AppState>,
     body: web::Json<PutTransactionBody>,
 ) -> Result<HttpResponse, ApiError> {
-    let core = cep_core(&state)?;
-    let mut result = crate::tx::put_signed_transaction(&core, &body.transaction).await?;
-    if matches!(body.wait, crate::tx::WaitMode::Processed) {
-        let event = core
-            .wait_transaction(&result.transaction_hash, None)
-            .await
-            .map_err(|e| ApiError::Chain(e.to_string()))?;
-        result = result.with_execution(event);
-    }
+    let client = cep_core(&state)?;
+    let wait = matches!(body.wait, crate::tx::WaitMode::Processed);
+    let result = crate::tx::put_signed_transaction(&client, &body.transaction, wait).await?;
     Ok(HttpResponse::Ok().json(PipelineOutcome::from_call(
         result,
         crate::tx::SubmitMode::Put,

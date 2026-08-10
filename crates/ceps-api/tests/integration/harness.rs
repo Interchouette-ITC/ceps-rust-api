@@ -5,7 +5,6 @@
 //! Product code under `crates/` must not import this module.
 
 use ceps_api::config::{Config, SignBackend};
-use ceps_api::sign::LocalKeyring;
 use ceps_api::state::AppState;
 
 #[must_use]
@@ -38,13 +37,5 @@ pub fn state_from_env() -> AppState {
     if cfg.sign_backend == SignBackend::None && !cfg.local_keys.is_empty() {
         cfg.sign_backend = SignBackend::Local;
     }
-    AppState::new(cfg)
-}
-
-/// App state with an explicit local keyring (tests that inject one key).
-pub fn state_with_local_keys(ring: LocalKeyring) -> AppState {
-    let mut cfg = Config::from_env();
-    cfg.sign_backend = SignBackend::Local;
-    cfg.local_keys = ring;
     AppState::new(cfg)
 }

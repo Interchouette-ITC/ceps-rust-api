@@ -62,11 +62,15 @@ reqwest = { workspace = true }
 parking_lot = { workspace = true }
 uuid = { workspace = true }
 ceps-client = { workspace = true }
-casper-rust-wasm-sdk = { workspace = true }
 
 [dev-dependencies]
 actix-web = { workspace = true, features = ["macros"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio = { workspace = true, features = [
+  "rt-multi-thread",
+  "macros",
+  "net",
+  "time",
+] }
 wiremock = "0.6"
 reqwest = { workspace = true }
 serde_json = { workspace = true }
