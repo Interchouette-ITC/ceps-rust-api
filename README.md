@@ -100,7 +100,7 @@ External sign path: `submit=return` → sign elsewhere → `POST /v1/chain/put-t
 
 ## Docker
 
-Image: `interchouette/ceps-rust-api` (build locally with `make docker-build`).
+Image: `interchouette/ceps-rust-api` (build locally with `make docker-build`). Details: [`docker/README.md`](docker/README.md).
 
 ```bash
 # API only (point CEPS_RPC_URL at a reachable node)
