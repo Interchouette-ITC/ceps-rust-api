@@ -1,4 +1,4 @@
-//! `OpenAPI` document aggregation.
+//! OpenAPI document aggregation.
 
 use crate::features::CompiledFeatures;
 use crate::routes::{health::HealthResult, hello::HelloResult};
@@ -10,19 +10,12 @@ use utoipa::OpenApi;
     paths(
         crate::routes::hello::hello_handler,
         crate::routes::health::health_handler,
-        crate::routes::instances::list_instances,
-        crate::routes::instances::register_instance,
-        crate::routes::instances::get_instance,
-        crate::routes::instances::delete_instance,
-        crate::routes::wasm::list_wasm,
     ),
     components(schemas(
         HelloResult,
         HealthResult,
         CompiledFeatures,
         PipelineOutcome,
-        crate::registry::InstanceRecord,
-        crate::routes::wasm::WasmEntry,
         crate::tx::MutateEnvelope,
         crate::tx::SubmitMode,
         crate::tx::WaitMode,
@@ -31,7 +24,6 @@ use utoipa::OpenApi;
     tags(
         (name = "Health", description = "Liveness and hello"),
         (name = "Chain", description = "Put already-signed Transaction JSON"),
-        (name = "Instances", description = "CEP contract instance registry and wasm"),
         (name = "CEP-18", description = "Fungible token"),
         (name = "CEP-78", description = "NFT"),
         (name = "CEP-85", description = "Multi-token"),

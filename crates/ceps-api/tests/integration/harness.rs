@@ -4,8 +4,8 @@
 //! No faucet env, no native-transfer funding in this repo.
 //! Product code under `crates/` must not import this module.
 
-use ceps_api::config::{Config, SignBackend};
-use ceps_api::state::AppState;
+use ceps_rust_api::config::{Config, SignBackend};
+use ceps_rust_api::state::AppState;
 
 #[must_use]
 pub async fn rpc_reachable(rpc_url: &str) -> bool {

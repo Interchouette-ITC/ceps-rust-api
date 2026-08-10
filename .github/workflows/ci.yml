@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FEATURES: ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
 
 jobs:
   lint-test:
@@ -43,8 +44,108 @@ jobs:
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy
-        run: env -u CARGO_TARGET_DIR cargo clippy -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put -- -D warnings -D clippy::all
+        run: env -u CARGO_TARGET_DIR cargo clippy -p ceps-rust-api --features ${{ env.FEATURES }} -- -D warnings -D clippy::all
       - name: test
-        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put -- --nocapture
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-rust-api --features ${{ env.FEATURES }} -- --nocapture
       - name: feature-slices
         run: make verify-slices
+
+  preview:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ceps-rust-api
+    steps:
+      - name: Checkout ceps-rust-api
+        uses: actions/checkout@v4
+        with:
+          path: ceps-rust-api
+      - name: Checkout ceps-rust-ts-client
+        uses: actions/checkout@v4
+        with:
+          repository: Interchouette-ITC/ceps-rust-ts-client
+          path: ceps-rust-ts-client
+          ref: dev
+      - name: Checkout casper-rust-wasm-sdk
+        uses: actions/checkout@v4
+        with:
+          repository: casper-ecosystem/casper-rust-wasm-sdk
+          path: rustSDK
+          ref: dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ceps-rust-api
+      - name: Release binary
+        run: env -u CARGO_TARGET_DIR cargo build --release -p ceps-rust-api --features ${{ env.FEATURES }}
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceps-rust-api-${{ github.sha }}
+          path: ceps-rust-api/target/release/ceps-rust-api
+          if-no-files-found: error
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image
+        run: |
+          docker build -f docker/Dockerfile \
+            --build-arg FEATURES=${{ env.FEATURES }} \
+            -t interchouette/ceps-rust-api:ci-${{ github.sha }} \
+            ..
+      - name: Save image artifact
+        run: docker save interchouette/ceps-rust-api:ci-${{ github.sha }} | gzip > /tmp/ceps-rust-api-image.tar.gz
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceps-rust-api-image-${{ github.sha }}
+          path: /tmp/ceps-rust-api-image.tar.gz
+          if-no-files-found: error
+
+  e2e:
+    needs: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: ceps-rust-api
+    steps:
+      - name: Checkout ceps-rust-api
+        uses: actions/checkout@v4
+        with:
+          path: ceps-rust-api
+      - name: Checkout ceps-rust-ts-client
+        uses: actions/checkout@v4
+        with:
+          repository: Interchouette-ITC/ceps-rust-ts-client
+          path: ceps-rust-ts-client
+          ref: dev
+      - name: Checkout casper-rust-wasm-sdk
+        uses: actions/checkout@v4
+        with:
+          repository: casper-ecosystem/casper-rust-wasm-sdk
+          path: rustSDK
+          ref: dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ceps-rust-api
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Release binary
+        run: env -u CARGO_TARGET_DIR cargo build --release -p ceps-rust-api --features ${{ env.FEATURES }}
+      - name: E2E local (NCTL + LOCAL_KEYS_JSON)
+        run: |
+          chmod +x scripts/ci-e2e-local.sh scripts/fund-kms-from-nctl.sh scripts/ci-e2e-kms.sh
+          NCTL_CONTAINER=casper-nctl-2-docker-ci \
+            NCTL_IMAGE=interchouette/casper-nctl-2-docker:dev \
+            API_BIN="$PWD/target/release/ceps-rust-api" \
+            APP_PORT=8080 \
+            ./scripts/ci-e2e-local.sh
+      - name: E2E kms (LocalStack + KMS create + fund + API)
+        run: |
+          NCTL_CONTAINER=casper-nctl-2-docker-ci \
+            API_BIN="$PWD/target/release/ceps-rust-api" \
+            APP_PORT=8081 \
+            KMS_URL=http://127.0.0.1:4000 \
+            ./scripts/ci-e2e-kms.sh

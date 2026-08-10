@@ -1,5 +1,5 @@
-use ceps_api::config::Config;
-use ceps_api::server::run_server;
+use ceps_rust_api::config::Config;
+use ceps_rust_api::server::run_server;
 use tracing_subscriber::EnvFilter;
 
 #[actix_web::main]

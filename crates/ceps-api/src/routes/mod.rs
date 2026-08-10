@@ -5,8 +5,6 @@ pub mod common;
 pub mod extractors;
 pub mod health;
 pub mod hello;
-pub mod instances;
-pub mod wasm;
 
 #[cfg(feature = "cep18")]
 pub mod cep18;

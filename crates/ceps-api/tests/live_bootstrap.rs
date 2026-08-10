@@ -9,7 +9,7 @@
 mod harness;
 
 use actix_web::test;
-use ceps_api::server::create_app;
+use ceps_rust_api::server::create_app;
 use harness::{rpc_reachable, state_from_env};
 
 #[actix_web::test]
@@ -33,8 +33,8 @@ async fn hello_reports_local_keys_when_configured() {
 
 #[actix_web::test]
 async fn make_only_cep18_install_when_rpc_optional() {
-    let app = test::init_service(create_app(ceps_api::state::AppState::new(
-        ceps_api::config::Config::default(),
+    let app = test::init_service(create_app(ceps_rust_api::state::AppState::new(
+        ceps_rust_api::config::Config::default(),
     )))
     .await;
     let initiator = format!("01{}", "11".repeat(32));

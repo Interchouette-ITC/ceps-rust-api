@@ -14,9 +14,10 @@ Multi-stage build → `gcr.io/distroless/cc-debian13:nonroot` (Debian 13 / trixi
 Default `FEATURES` matches the package default (CEPs + swagger / tx-return / sign-local / sign-kms / chain-put). Override at build time:
 
 ```bash
-docker build -f docker/Dockerfile --build-arg FEATURES=ceps-all,swagger-ui -t interchouette/ceps-rust-api:slim .
-# or
-FEATURES=ceps-all,swagger-ui make docker-build
+# From this repo (context = parent so path-deps resolve):
+make docker-build
+# Or:
+docker build -f docker/Dockerfile --build-arg FEATURES=ceps-all,swagger-ui -t interchouette/ceps-rust-api:slim ..
 ```
 
 ## Where to pull images

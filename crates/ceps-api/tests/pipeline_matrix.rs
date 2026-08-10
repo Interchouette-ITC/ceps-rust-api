@@ -1,14 +1,14 @@
 //! Integration tests: pipeline matrix, feature imply/forbid, live NCTL smoke when reachable.
 
 use actix_web::test;
-use ceps_api::config::Config;
-use ceps_api::server::create_app;
-use ceps_api::state::AppState;
+use ceps_rust_api::config::Config;
+use ceps_rust_api::server::create_app;
+use ceps_rust_api::state::AppState;
 
 #[cfg(feature = "sign-local")]
-use ceps_api::config::SignBackend;
+use ceps_rust_api::config::SignBackend;
 #[cfg(feature = "sign-local")]
-use ceps_api::sign::LocalKeyring;
+use ceps_rust_api::sign::LocalKeyring;
 
 fn app_none() -> AppState {
     AppState::new(Config::default())
@@ -101,43 +101,6 @@ async fn chain_put_rejects_invalid_json() {
     assert_eq!(resp.status(), 400);
 }
 
-#[actix_web::test]
-async fn instances_register_list_delete() {
-    let app = test::init_service(create_app(app_none())).await;
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/instances")
-            .set_json(serde_json::json!({
-                "cep": "18",
-                "contract_hash": "aaa",
-                "label": "demo"
-            }))
-            .to_request(),
-    )
-    .await;
-    assert!(resp.status().is_success());
-    let created: serde_json::Value = test::read_body_json(resp).await;
-    let id = created["id"].as_str().unwrap().to_string();
-
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::get().uri("/v1/instances").to_request(),
-    )
-    .await;
-    let list: Vec<serde_json::Value> = test::read_body_json(resp).await;
-    assert_eq!(list.len(), 1);
-
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::delete()
-            .uri(&format!("/v1/instances/{id}"))
-            .to_request(),
-    )
-    .await;
-    assert_eq!(resp.status(), 204);
-}
-
 #[cfg(all(feature = "cep18", feature = "sign-local"))]
 #[actix_web::test]
 async fn local_put_missing_key_is_no_signer() {
@@ -170,8 +133,8 @@ async fn local_put_missing_key_is_no_signer() {
 #[cfg(feature = "sign-kms")]
 #[actix_web::test]
 async fn kms_sign_client_via_wiremock() {
-    use ceps_api::config::SignBackend;
-    use ceps_api::kms::KmsClient;
+    use ceps_rust_api::config::SignBackend;
+    use ceps_rust_api::kms::KmsClient;
     use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -262,7 +225,8 @@ async fn openapi_lists_platform_and_cep18_when_enabled() {
     assert!(resp.status().is_success());
     let body: serde_json::Value = test::read_body_json(resp).await;
     let paths = body["paths"].as_object().expect("paths");
-    assert!(paths.contains_key("/v1/instances/{id}"));
+    assert!(!paths.contains_key("/v1/instances/{id}"));
+    assert!(!paths.contains_key("/v1/wasm"));
     #[cfg(feature = "chain-put")]
     assert!(paths.contains_key("/v1/chain/put-transaction"));
     #[cfg(not(feature = "chain-put"))]

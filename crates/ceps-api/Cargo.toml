@@ -1,5 +1,5 @@
 [package]
-name = "ceps-api"
+name = "ceps-rust-api"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -8,9 +8,11 @@ homepage.workspace = true
 repository.workspace = true
 authors.workspace = true
 license-file.workspace = true
+publish = false
 
 [lib]
-name = "ceps_api"
+# Test/bin shared modules only. Not a published library API.
+name = "ceps_rust_api"
 path = "src/lib.rs"
 
 [[bin]]
@@ -60,7 +62,7 @@ thiserror = { workspace = true }
 dotenvy = { workspace = true }
 reqwest = { workspace = true }
 parking_lot = { workspace = true }
-uuid = { workspace = true }
+
 ceps-client = { workspace = true }
 
 [dev-dependencies]

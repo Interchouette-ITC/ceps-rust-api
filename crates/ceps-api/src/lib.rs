@@ -1,4 +1,5 @@
-//! ceps-rust-api library: Actix HTTP application for Casper CEP operations.
+//! Internal application modules for the `ceps-rust-api` binary and its tests.
+//! Not a published library for external consumers (`publish = false` on the package).
 
 #![allow(
     clippy::missing_errors_doc,
@@ -18,7 +19,6 @@ pub mod error;
 pub mod features;
 pub mod middleware;
 pub mod openapi;
-pub mod registry;
 pub mod routes;
 pub mod server;
 pub mod sign;

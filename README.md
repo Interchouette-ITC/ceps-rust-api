@@ -75,7 +75,7 @@ Hello `/` reports compiled features, `sign_backend`, and whether `KMS_URL` is se
 
 ## HTTP surface
 
-Platform: health, hello, instances registry, wasm list. Optional: `POST /v1/chain/put-transaction` (`chain-put`).
+Platform: health, hello. Optional: `POST /v1/chain/put-transaction` (`chain-put`).
 
 CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` \| `processed`), `signer.public_key`, `payment_amount`.
 
@@ -166,13 +166,13 @@ SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000 make run
 # CEP submit=put with signer.public_key = the funded KMS public key
 ```
 
-After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `installer_public_key` and `package_hash_key_name` (optional `label` registers an instance).
+After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `installer_public_key` and `package_hash_key_name` (returns contract/package hashes).
 
 ### Live harness (tests only)
 
 ```bash
 # Put funded NCTL faucet/user PEMs into LOCAL_KEYS_JSON, then:
-cargo test -p ceps-api --test live_bootstrap -- --nocapture
+cargo test -p ceps-rust-api --test live_bootstrap -- --nocapture
 ```
 
 Helpers live under `crates/ceps-api/tests/integration/`. Application code under `crates/` does not load faucet or NCTL concepts.
@@ -184,8 +184,10 @@ Helpers live under `crates/ceps-api/tests/integration/`. Application code under 
 | `make build` / `run`                 | Debug binary                               |
 | `make verify`                        | fmt, clippy, pem-ban, tests                |
 | `make verify-slices`                 | CI feature-slice builds                    |
-| `make docker-build`                  | Release image (`FEATURES` → `--build-arg`) |
+| `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
 | `make docker-run` / `docker-run-kms` | Compose up                                 |
+| `scripts/ci-e2e-local.sh`            | Real NCTL + local keys e2e                 |
+| `scripts/ci-e2e-kms.sh`              | Real KMS + fund + API e2e                  |
 | `make version-show`                  | Crate / image tag                          |
 
 ## License

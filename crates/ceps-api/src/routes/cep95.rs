@@ -351,8 +351,6 @@ pub async fn cep95_token_metadata(
 pub struct BindOdraInstallBody {
     pub installer_public_key: String,
     pub package_hash_key_name: String,
-    /// When set, register the resolved hashes in the in-memory instance registry.
-    pub label: Option<String>,
 }
 
 #[utoipa::path(
@@ -372,18 +370,8 @@ pub async fn cep95_bind_odra_install(
         .bind_odra_install(&body.installer_public_key, &body.package_hash_key_name)
         .await
         .map_err(ApiError::from_cep)?;
-    let mut out = serde_json::json!({
+    Ok(HttpResponse::Ok().json(serde_json::json!({
         "contract_hash": contract_hash,
         "package_hash": package_hash,
-    });
-    if body.label.is_some() {
-        let rec = state.registry.register(
-            "95",
-            &contract_hash,
-            Some(package_hash.clone()),
-            body.label.clone(),
-        );
-        out["instance"] = serde_json::to_value(rec).unwrap_or_default();
-    }
-    Ok(HttpResponse::Ok().json(out))
+    })))
 }

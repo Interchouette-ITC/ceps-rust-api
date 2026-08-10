@@ -27,13 +27,13 @@ help:
 	@echo "  SIGN_BACKEND: leave unset for none"
 
 build:
-	$(CARGO) build -p ceps-api $(CARGO_FEATURES)
+	$(CARGO) build -p ceps-rust-api $(CARGO_FEATURES)
 
 build-release:
-	$(CARGO) build -p ceps-api --release $(CARGO_FEATURES)
+	$(CARGO) build -p ceps-rust-api --release $(CARGO_FEATURES)
 
 check:
-	$(CARGO) check -p ceps-api $(CARGO_FEATURES)
+	$(CARGO) check -p ceps-rust-api $(CARGO_FEATURES)
 
 format:
 	$(CARGO) fmt --all
@@ -42,22 +42,22 @@ format-check:
 	$(CARGO) fmt --all -- --check
 
 clippy:
-	$(CARGO) clippy -p ceps-api $(CARGO_FEATURES) -- $(CLIPPY_FLAGS)
+	$(CARGO) clippy -p ceps-rust-api $(CARGO_FEATURES) -- $(CLIPPY_FLAGS)
 
 lint: format-check clippy pem-ban
 
 test: lint
-	$(CARGO) test -p ceps-api $(CARGO_FEATURES) -- --nocapture
+	$(CARGO) test -p ceps-rust-api $(CARGO_FEATURES) -- --nocapture
 
 verify: lint test
 
 # Same feature slices as CI (.github/workflows/ci.yml).
 verify-slices:
-	$(CARGO) test -p ceps-api --no-default-features --features cep18,tx-return,swagger-ui -- --nocapture
-	$(CARGO) test -p ceps-api --no-default-features --features cep78,tx-return,swagger-ui -- --nocapture
-	$(CARGO) check -p ceps-api --no-default-features --features cep85,cep95,swagger-ui
-	$(CARGO) test -p ceps-api --no-default-features --features cep18,swagger-ui -- --nocapture
-	$(CARGO) test -p ceps-api --no-default-features --features swagger-ui -- --nocapture
+	$(CARGO) test -p ceps-rust-api --no-default-features --features cep18,tx-return,swagger-ui -- --nocapture
+	$(CARGO) test -p ceps-rust-api --no-default-features --features cep78,tx-return,swagger-ui -- --nocapture
+	$(CARGO) check -p ceps-rust-api --no-default-features --features cep85,cep95,swagger-ui
+	$(CARGO) test -p ceps-rust-api --no-default-features --features cep18,swagger-ui -- --nocapture
+	$(CARGO) test -p ceps-rust-api --no-default-features --features swagger-ui -- --nocapture
 
 pem-ban:
 	@if rg -n 'secret_key\.pem|PATH_PRIVATE_KEY_|PRIVATE_KEY_|FAUCET_MODE|BOOTSTRAP_KMS' \
@@ -67,12 +67,13 @@ pem-ban:
 	@echo "pem-ban: ok"
 
 run:
-	$(CARGO) run -p ceps-api $(CARGO_FEATURES)
+	$(CARGO) run -p ceps-rust-api $(CARGO_FEATURES)
 
 docker-build:
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -f $(DOCKERFILE) \
 		--build-arg FEATURES=$(FEATURES) \
-		-t $(HUB_IMAGE):$(TAG) -t $(HUB_IMAGE):$(APP_VERSION) .
+		-t $(HUB_IMAGE):$(TAG) -t $(HUB_IMAGE):$(APP_VERSION) \
+		..
 
 docker-run:
 	docker compose -f $(COMPOSE) up -d

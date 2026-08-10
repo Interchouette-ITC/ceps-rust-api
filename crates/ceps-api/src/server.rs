@@ -48,15 +48,6 @@ pub fn create_app(
         .service(health_handler)
         .route("/docs", web::get().to(redirect_docs_absolute));
 
-    app = svc!(
-        app,
-        crate::routes::instances::list_instances,
-        crate::routes::instances::register_instance,
-        crate::routes::instances::get_instance,
-        crate::routes::instances::delete_instance,
-        crate::routes::wasm::list_wasm,
-    );
-
     #[cfg(feature = "chain-put")]
     {
         app = app.service(crate::routes::chain::chain_put_transaction);
@@ -218,7 +209,10 @@ mod tests {
         let body: serde_json::Value = test::read_body_json(resp).await;
         assert_eq!(body["info"]["title"], "ceps-rust-api");
         assert!(body["paths"].get("/health").is_some());
-        assert!(body["paths"].get("/v1/instances/{id}").is_some());
+        #[cfg(feature = "chain-put")]
+        assert!(body["paths"].get("/v1/chain/put-transaction").is_some());
+        assert!(body["paths"].get("/v1/instances/{id}").is_none());
+        assert!(body["paths"].get("/v1/wasm").is_none());
     }
 
     #[actix_web::test]
