@@ -19,13 +19,19 @@ CLIPPY_FLAGS := -D warnings -D clippy::all
 .DEFAULT_GOAL := help
 
 .PHONY: help build build-release check test verify verify-slices lint format format-check clippy \
-	docker-build docker-run docker-run-kms docker-stop version-show run pem-ban
+	docker-build docker-run docker-run-kms docker-stop version-show run pem-ban \
+	export-local-keys run-local
+
+NCTL_CONTAINER ?= casper-nctl-2-docker-dev
+NCTL_USERS ?= 1 2 3
 
 help:
 	@echo "ceps-rust-api targets"
 	@echo "  make build / test / verify / verify-slices / run"
+	@echo "  make export-local-keys   # print LOCAL_KEYS_JSON (NCTL users; lab only)"
+	@echo "  make run-local           # run with SIGN_BACKEND=local + exported keys"
 	@echo "  Features: FEATURES=$(FEATURES)"
-	@echo "  SIGN_BACKEND: leave unset for none"
+	@echo "  SIGN_BACKEND: none (default) | local (lab) | local-production | kms (recommended)"
 
 build:
 	$(CARGO) build -p ceps-rust-api $(CARGO_FEATURES)
@@ -69,6 +75,19 @@ pem-ban:
 
 run:
 	RUST_LOG=$(RUST_LOG) $(CARGO) run -p ceps-rust-api $(CARGO_FEATURES)
+
+# Lab only: dump NCTL user PEMs as LOCAL_KEYS_JSON (stdout). Never faucet.
+export-local-keys:
+	@chmod +x scripts/export-nctl-local-keys.sh
+	@NCTL_CONTAINER=$(NCTL_CONTAINER) NCTL_USERS="$(NCTL_USERS)" ./scripts/export-nctl-local-keys.sh
+
+# Lab only: run API with SIGN_BACKEND=local and keys from export-local-keys.
+run-local:
+	@chmod +x scripts/export-nctl-local-keys.sh
+	@RUST_LOG=$(RUST_LOG) \
+	SIGN_BACKEND=local \
+	LOCAL_KEYS_JSON="$$(NCTL_CONTAINER=$(NCTL_CONTAINER) NCTL_USERS="$(NCTL_USERS)" ./scripts/export-nctl-local-keys.sh)" \
+	$(CARGO) run -p ceps-rust-api $(CARGO_FEATURES)
 
 docker-build:
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -f $(DOCKERFILE) \

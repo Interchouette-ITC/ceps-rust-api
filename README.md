@@ -2,7 +2,21 @@
 
 HTTP API for Casper **CEP-18**, **CEP-78**, **CEP-85**, and **CEP-95**, built with [Actix Web](https://actix.rs/) and [utoipa](https://github.com/juhaku/utoipa).
 
-It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) (`CEPClient`) for CEP args, transaction make, wait, and put of signed JSON. Optional put signing uses a lab local PEM keyring (`LOCAL_KEYS_JSON`) or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
+It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) (`CEPClient`) for CEP args, transaction make, wait, and put of signed JSON. Optional put signing uses an in-process PEM keyring or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
+
+## Deployment model (read this first)
+
+This API is built for **private-network microservice** use (VPC / cluster / closed LAN). It is **not** an internet-facing wallet API.
+
+**Recommended production setup: private network + `SIGN_BACKEND=kms`.** Keep the listener off the public internet. Configure the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) peer separately ([OVERVIEW](https://github.com/Interchouette-ITC/kms-secp256k1-api/blob/dev/docs/OVERVIEW.md), [Tutorial](https://github.com/Interchouette-ITC/kms-secp256k1-api/blob/dev/docs/Tutorial.md)); this API only needs `KMS_URL`.
+
+| Exposure           | Role                                                                                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Private + KMS**  | **Recommended.** Trusted microservice callers; this API asks KMS to sign; create/list keys on KMS.                                                                   |
+| **Private + PEMs** | Supported fallback: `SIGN_BACKEND=local-production` + `LOCAL_KEYS_JSON_PRODUCTION` when you cannot run KMS. Same network isolation requirement.                      |
+| **Public / demo**  | Only **`SIGN_BACKEND=none`** (default): `submit=return` builds unsigned Transaction JSON; sign elsewhere. Do **not** load PEMs or point at KMS on a public listener. |
+
+**Shared warning for every signing backend** (`local`, `local-production`, `kms`): anyone who can reach this HTTP API and knows a **loaded** public key can ask the backend to sign a put. The public key is not a secret; **private network is mandatory** for signing modes.
 
 ## Quick start
 
@@ -10,19 +24,28 @@ It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rus
 cp .env.example .env
 make build
 make verify
-# Lab: leave SIGN_BACKEND unset (make-only / queries) or set local + LOCAL_KEYS_JSON from NCTL users.
-# Production-shaped: SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000
 make run
+# Default: SIGN_BACKEND unset (none). No PEMs. Pass signer.public_key; submit=return only.
+#
+# Recommended production (private network + KMS):
+#   SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000 make run
+#
+# Private-network fallback without KMS:
+#   SIGN_BACKEND=local-production LOCAL_KEYS_JSON_PRODUCTION='…' make run
+#
+# Lab put signing (NCTL users, private/dev only):
+#   make export-local-keys
+#   make run-local
 ```
 
 `make run` defaults `RUST_LOG=info` so you see listen / version / docs lines on stdout.
 
-| URL                                            | Purpose                                          |
-| ---------------------------------------------- | ------------------------------------------------ |
+| URL                                            | Purpose                                        |
+| ---------------------------------------------- | ---------------------------------------------- |
 | `http://127.0.0.1:8080/`                       | Hello (`name`, `version`, features, node URLs) |
-| `http://127.0.0.1:8080/health`                 | Liveness                                         |
-| `http://127.0.0.1:8080/docs/`                  | Swagger UI                                       |
-| `http://127.0.0.1:8080/docs/ceps-openapi.json` | OpenAPI JSON                                     |
+| `http://127.0.0.1:8080/health`                 | Liveness                                       |
+| `http://127.0.0.1:8080/docs/`                  | Swagger UI                                     |
+| `http://127.0.0.1:8080/docs/ceps-openapi.json` | OpenAPI JSON                                   |
 
 Default node settings match local NCTL: RPC `http://127.0.0.1:11101`, SSE `http://127.0.0.1:18101/events`, chain `casper-net-1`.
 
@@ -39,21 +62,23 @@ make verify-slices   # same feature slices as CI
 | `ceps-rust-ts-client` (`CEPClient`) | CEP entrypoints, make → JSON, `put_transaction`, `wait_transaction` |
 | `kms-secp256k1-api`                 | Optional HTTP signer (create/list on KMS itself)                    |
 
-**Separation:** KMS owns secrets, key create/list, and signatures. This API owns CEP recipes and put pipeline. Call KMS directly to create keys; this API only calls KMS `signTransaction` when `SIGN_BACKEND=kms`. No account/balance/transaction query routes (use node RPC or CEP `wait` / `CallResult`).
+**Separation:** **Recommended:** private network + KMS (KMS owns secrets, key create/list, and signatures; this API only calls `signTransaction`). Fallback without KMS: `local-production` holds PEMs in-process on the same private network. This API never exposes HTTP key create, list, or fund.
 
 ## Configuration
 
-| Env                     | Default / notes                                                                                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `APP_ADDR` / `APP_PORT` | `0.0.0.0` / `8080`                                                                                                                                                 |
-| `CEPS_RPC_URL`          | `http://127.0.0.1:11101`                                                                                                                                           |
-| `CEPS_SSE_URL`          | `http://127.0.0.1:18101/events`                                                                                                                                    |
-| `CEPS_CHAIN_NAME`       | `casper-net-1`                                                                                                                                                     |
-| `SIGN_BACKEND`          | unset, empty, or `none` → no put signer; `local` or `kms`                                                                                                          |
-| `LOCAL_KEYS_JSON`       | **Lab / NCTL users only.** Env JSON blob: `public_key` → PEM. Default export: user-1..3. Do not put the faucet here (faucet is for KMS funding). |
-| `KMS_URL`               | KMS peer when `SIGN_BACKEND=kms`                                                                                                                                   |
-| `CEPS_WASM_ROOT`        | Directory of contract `.wasm` files                                                                                                                                |
-| `RUST_LOG`              | tracing filter                                                                                                                                                     |
+| Env                          | Default / notes                                                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_ADDR` / `APP_PORT`      | `0.0.0.0` / `8080`                                                                                                                                   |
+| `CEPS_RPC_URL`               | `http://127.0.0.1:11101`                                                                                                                             |
+| `CEPS_SSE_URL`               | `http://127.0.0.1:18101/events`                                                                                                                      |
+| `CEPS_CHAIN_NAME`            | `casper-net-1`                                                                                                                                       |
+| `SIGN_BACKEND`               | **Recommend `kms` on a private network.** Also: `none` (default) \| `local` \| `local-production`                                                    |
+| `LOCAL_KEYS_JSON`            | **Tests / NCTL only.** Used when `SIGN_BACKEND=local`. JSON map or `{keys:[…]}`; PEM text **or** path.                                               |
+| `LOCAL_KEYS_JSON_PRODUCTION` | **Private network fallback** when not using KMS. Same JSON as lab: PEM text **or** path. Prefer secret mounts (path), not inline PEMs in env.        |
+| `KMS_URL`                    | KMS peer when `SIGN_BACKEND=kms`. Peer env/credentials: [kms docs](https://github.com/Interchouette-ITC/kms-secp256k1-api/blob/dev/docs/Tutorial.md) |
+| `DOTENV_DISABLE`             | Set to `1` / `true` / `yes` to skip loading `.env` (CI / containers)                                                                                 |
+| `CEPS_WASM_ROOT`             | Directory of contract `.wasm` files                                                                                                                  |
+| `RUST_LOG`                   | tracing filter (default `info`; include `actix_web=info` for request access logs)                                                                    |
 
 See [`.env.example`](.env.example).
 
@@ -61,19 +86,15 @@ See [`.env.example`](.env.example).
 
 Package **default** is a full build. Slim builds use `--no-default-features` plus the scopes you need.
 
-| Feature                        | Effect                                                                      |
-| ------------------------------ | --------------------------------------------------------------------------- |
-| `cep18` … `cep95` / `ceps-all` | CEP route scopes                                                            |
-| `all`                          | Alias for the package default                                               |
-| `swagger-ui`                   | `/docs`                                                                     |
-| `tx-return`                    | Allow `submit=return` (Transaction JSON without put)                        |
-| `sign-local`                   | Lab keyring from `LOCAL_KEYS_JSON` (NCTL PEMs). Not for production custody. |
-| `sign-kms`                     | Internal KMS `signTransaction` client for puts                              |
-| `chain-put`                    | `POST /v1/chain/put-transaction` (already-signed Transaction JSON)          |
-
-There is no HTTP key create, key list, or fund route on this API.
-
-`Makefile` `FEATURES` defaults to the same set as package default. Docker accepts `--build-arg FEATURES=…`.
+| Feature                        | Effect                                                             |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `cep18` … `cep95` / `ceps-all` | CEP route scopes                                                   |
+| `all`                          | Alias for the package default                                      |
+| `swagger-ui`                   | `/docs`                                                            |
+| `tx-return`                    | Allow `submit=return` (Transaction JSON without put)               |
+| `sign-local`                   | In-process keyring (`local` and `local-production`)                |
+| `sign-kms`                     | Internal KMS `signTransaction` client for puts                     |
+| `chain-put`                    | `POST /v1/chain/put-transaction` (already-signed Transaction JSON) |
 
 Hello `/` reports `name`, `version`, node URLs, compiled CEP features, and docs path. It does **not** expose signing backend or keyring/KMS custody state.
 
@@ -82,6 +103,8 @@ Hello `/` reports `name`, `version`, node URLs, compiled CEP features, and docs 
 Platform: health, hello. Optional: `POST /v1/chain/put-transaction` (`chain-put`).
 
 CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` \| `processed`), `signer.public_key`, `payment_amount`.
+
+`signer.public_key` is always the **account / initiator** (Casper public-key hex). You pass the public keys your services operate.
 
 | Area   | Examples                                                                           |
 | ------ | ---------------------------------------------------------------------------------- |
@@ -92,28 +115,48 @@ CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` 
 
 OpenAPI lists the paths compiled into this binary. Full route lists are easiest in `/docs/`.
 
-### Signing
+### Signing backends
 
-| Mode  | How                                                                                                  |
-| ----- | ---------------------------------------------------------------------------------------------------- |
-| none  | `submit=return` (with `tx-return`) works; `submit=put` → `no_signer`                                 |
-| local | NCTL lab: user PEMs in `LOCAL_KEYS_JSON` (faucet not used). Already funded. |
-| kms   | Keys in KMS. Create on KMS; fund from NCTL faucet before use. API only signs puts. |
+**Prefer private network + `kms` in production.** Other modes are lab, demo, or fallback.
 
-#### How signing modes are tested (same shape)
+| Mode                 | Network                               | Secrets in this process                         | Put?                                            |
+| -------------------- | ------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
+| **kms**              | **Private only (recommended)**        | None here; KMS holds keys                       | Yes                                             |
+| **local-production** | **Private only** (fallback if no KMS) | `LOCAL_KEYS_JSON_PRODUCTION` (PEM text or path) | Yes                                             |
+| **local**            | Lab / tests                           | `LOCAL_KEYS_JSON` (PEM text or path)            | Yes                                             |
+| **none** (default)   | Public demo OK                        | None. `signer.public_key` = initiator only.     | No (use `return` + external sign + `chain-put`) |
 
-| Mode      | Keys                                  | Fund                                                                                                     | Then                          |
-| --------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| **local** | NCTL **users** (not faucet) → `LOCAL_KEYS_JSON` | Already funded by NCTL | `SIGN_BACKEND=local`, CEP put |
-| **kms**   | Create on KMS HTTP | Fund from NCTL **faucet** via `scripts/fund-kms-from-nctl.sh` | `SIGN_BACKEND=kms`, CEP put |
+Keyring JSON shapes (same for lab and production env vars):
 
-CI always covers KMS **sign** via wiremock. Live KMS create+fund is a **pre-test** step (restarted empty KMS ⇒ recreate and refund).
+```json
+{ "01ab…": "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----" }
+```
 
-`wait_transaction` on `CEPClient`: use when you put with wait off, or already have a hash; normal CEP put uses `TransactionParams::wait`. This API’s CEP routes rely on that; we do not re-expose get_transaction over HTTP.
+```json
+{ "01ab…": "/run/secrets/operator.pem" }
+```
 
-#### Why account/tx query routes were removed
+```json
+{
+  "keys": [
+    { "public_key": "01ab…", "secret_key_pem": "-----BEGIN…" },
+    { "public_key": "02cd…", "secret_key_path": "/run/secrets/other.pem" }
+  ]
+}
+```
 
-They were early “platform demo” helpers (check CSPR balance after fund, fetch tx by hash). That is node-explorer work, not CEP. Contract queries stay on CEP routes; put outcome stays `wait` / `CallResult`.
+Inline PEM vs path: if the value contains `-----BEGIN` … `PRIVATE KEY`, it is treated as PEM text; otherwise it must be an existing file path.
+
+#### How signing modes are tested
+
+| Mode                 | Keys                                                          | Fund                                                        | Then                            |
+| -------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------- |
+| **none**             | Caller’s public-key hex as `signer`                           | External                                                    | `submit=return` unit paths      |
+| **local**            | NCTL users → `LOCAL_KEYS_JSON` (`make export-local-keys`)     | Already funded by NCTL                                      | `make run-local` / `live_local` |
+| **local-production** | Same shape as lab; use production secrets / mounted PEM paths | Operator                                                    | Manual / private deploy         |
+| **kms**              | Create on KMS HTTP                                            | Fund from NCTL **faucet** (`scripts/fund-kms-from-nctl.sh`) | `live_kms` / LocalStack stack   |
+
+CI covers KMS **sign** via wiremock. Live KMS create+fund is a **pre-test** step (restarted empty KMS ⇒ recreate and refund).
 
 #### `chain-put` (external sign)
 
@@ -123,11 +166,13 @@ They were early “platform demo” helpers (check CSPR balance after fund, fetc
 
 ### Keys and funding (not product HTTP)
 
-| Context                | Keys                                    | Funding                                                   |
-| ---------------------- | --------------------------------------- | --------------------------------------------------------- |
-| NCTL lab / local tests | `LOCAL_KEYS_JSON` from NCTL **users** (default 1 2 3) | Already funded by NCTL |
-| KMS live / prod        | Create on KMS API | Pre-test fund from NCTL **faucet** |
-| This API               | Never create/list/fund over HTTP | Never |
+| Context                         | Keys                                                         | Funding                       |
+| ------------------------------- | ------------------------------------------------------------ | ----------------------------- |
+| **Private + KMS (recommended)** | Create on KMS API                                            | Lab: fund from NCTL faucet    |
+| Private, no KMS (fallback)      | `LOCAL_KEYS_JSON_PRODUCTION`                                 | Operator                      |
+| none / public demo              | Public keys in requests only                                 | External signer → `chain-put` |
+| NCTL lab                        | `LOCAL_KEYS_JSON` from NCTL users (`make export-local-keys`) | Already funded by NCTL        |
+| This API                        | Never create/list/fund over HTTP                             | Never                         |
 
 ## Docker
 
@@ -137,7 +182,7 @@ Image: `interchouette/ceps-rust-api` (build locally with `make docker-build`). D
 # API only (point CEPS_RPC_URL at a reachable node)
 make docker-run
 
-# API + KMS peer (signing only; create keys on KMS)
+# Recommended: API + KMS peer (private network; signing only; create keys on KMS)
 SIGN_BACKEND=kms KMS_URL=http://kms-secp256k1-api:4000 make docker-run-kms
 ```
 
@@ -145,25 +190,32 @@ Compose file: [`docker/docker-compose.yml`](docker/docker-compose.yml).
 
 ## Examples
 
-### NCTL local keys → CEP make
+### none → CEP make (unsigned JSON)
 
 ```bash
-SIGN_BACKEND=local CEPS_RPC_URL=http://127.0.0.1:11101 make run
+make run
 
 curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
   -H 'content-type: application/json' \
-  -d '{"submit":"return","signer":{"public_key":"<nctl-user>"},"payment_amount":"500000000000","name":"Demo","symbol":"DMO","decimals":9,"total_supply":"1000000000000","wasm":"cep18"}'
+  -d '{"submit":"return","signer":{"public_key":"<your-public-key>"},"payment_amount":"500000000000","name":"Demo","symbol":"DMO","decimals":9,"total_supply":"1000000000000","wasm":"cep18"}'
 ```
 
-### KMS put signing
+### NCTL lab local keys → put
+
+```bash
+make run-local
+
+curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
+  -H 'content-type: application/json' \
+  -d '{"submit":"put","signer":{"public_key":"<nctl-user>"},"payment_amount":"500000000000","name":"Demo","symbol":"DMO","decimals":9,"total_supply":"1000000000000","wasm":"cep18"}'
+```
+
+### KMS put signing (private network)
 
 Pre-test / ops (outside this API): create on KMS, fund the public key, then:
 
 ```bash
-# After KMS createKey → public_key hex:
 scripts/fund-kms-from-nctl.sh <kms-public-key-hex>
-# Uses docker exec into NCTL (default container casper-nctl-2-docker-dev)
-# or host casper-client + NCTL assets. nctl-transfer-native only funds user-N.
 
 SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000 make run
 # CEP submit=put with signer.public_key = the funded KMS public key
@@ -176,12 +228,9 @@ After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `insta
 Ops scripts prepare env; assertions are Rust tests (not bash e2e).
 
 ```bash
-# Local: NCTL users only (never faucet). Default user-1..3:
 export LOCAL_KEYS_JSON="$(NCTL_USERS='1 2 3' NCTL_CONTAINER=casper-nctl-2-docker-dev scripts/export-nctl-local-keys.sh)"
 SIGN_BACKEND=local cargo test -p ceps-rust-api --test live_local -- --nocapture
-# Covers CEP-18 put install → mint → transfer across three users. Not a full CEP method matrix yet.
 
-# KMS: createKey on KMS, fund with scripts/fund-kms-from-nctl.sh, then:
 # CEPS_KMS_PUBLIC_KEY=… SIGN_BACKEND=kms KMS_URL=… cargo test -p ceps-rust-api --test live_kms -- --nocapture
 ```
 
@@ -196,8 +245,10 @@ Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. 
 | `make verify-slices`                 | CI feature-slice builds                                            |
 | `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
 | `make docker-run` / `docker-run-kms` | Compose up                                                         |
-| `scripts/export-nctl-local-keys.sh`  | Ops: `LOCAL_KEYS_JSON` from NCTL users (default 1 2 3; no faucet) |
-| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a KMS public key from NCTL faucet                       |
+| `make export-local-keys`             | Print `LOCAL_KEYS_JSON` (NCTL users 1 2 3 by default)              |
+| `make run-local`                     | Lab run with `SIGN_BACKEND=local` + exported keys                  |
+| `scripts/export-nctl-local-keys.sh`  | Same export (ops script)                                           |
+| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a KMS public key from NCTL faucet                        |
 | `make version-show`                  | Crate / image tag                                                  |
 
 ## License

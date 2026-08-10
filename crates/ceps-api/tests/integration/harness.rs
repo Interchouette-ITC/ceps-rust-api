@@ -5,6 +5,7 @@
 //! Product code under `crates/` must not import this module.
 
 use ceps_rust_api::config::{Config, SignBackend};
+use ceps_rust_api::sign::LocalKeyring;
 use ceps_rust_api::state::AppState;
 
 #[must_use]
@@ -30,12 +31,22 @@ pub async fn rpc_reachable(rpc_url: &str) -> bool {
 
 /// App state from env (`CEPS_RPC_URL`, `LOCAL_KEYS_JSON`, optional `SIGN_BACKEND` / `KMS_URL`).
 pub fn state_from_env() -> AppState {
-    let mut cfg = Config::from_env();
+    let mut cfg = Config::from_env().unwrap_or_else(|e| {
+        panic!("invalid config for live test: {e}");
+    });
     if cfg.rpc_url.is_empty() {
         cfg.rpc_url = "http://127.0.0.1:11101".into();
     }
-    if cfg.sign_backend == SignBackend::None && !cfg.local_keys.is_empty() {
-        cfg.sign_backend = SignBackend::Local;
+    // Lab convenience: LOCAL_KEYS_JSON alone ⇒ local backend for live tests.
+    if cfg.sign_backend == SignBackend::None {
+        if let Ok(raw) = std::env::var("LOCAL_KEYS_JSON") {
+            if let Ok(ring) = LocalKeyring::from_json(&raw, "LOCAL_KEYS_JSON") {
+                if !ring.is_empty() {
+                    cfg.local_keys = ring;
+                    cfg.sign_backend = SignBackend::Local;
+                }
+            }
+        }
     }
     AppState::new(cfg)
 }

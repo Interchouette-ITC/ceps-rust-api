@@ -10,3 +10,5 @@ pub const DEFAULT_CHAIN_NAME: &str = "casper-net-1";
 pub const DEFAULT_CALL_PAYMENT: &str = "5000000000";
 /// Default payment (motes) for contract install.
 pub const DEFAULT_INSTALL_PAYMENT: &str = "400000000000";
+/// Outbound HTTP timeout for the KMS peer client.
+pub const KMS_HTTP_TIMEOUT_SECS: u64 = 30;

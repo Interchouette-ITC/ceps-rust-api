@@ -1,8 +1,11 @@
 //! Local PEM keyring (never accepted from HTTP bodies).
+//!
+//! Values may be inline PEM text or a filesystem path to a `.pem` file.
 
 use crate::error::ApiError;
 use parking_lot::RwLock;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Clone, Default)]
@@ -16,43 +19,52 @@ impl LocalKeyring {
         Self::default()
     }
 
-    #[must_use]
-    pub fn from_json(raw: &str) -> Result<Self, ApiError> {
+    /// Parse keyring JSON. `env_name` is used in error messages (`LOCAL_KEYS_JSON` / production).
+    pub fn from_json(raw: &str, env_name: &str) -> Result<Self, ApiError> {
         let ring = Self::new();
         if raw.trim().is_empty() {
             return Ok(ring);
         }
         let value: serde_json::Value = serde_json::from_str(raw)
-            .map_err(|e| ApiError::BadRequest(format!("LOCAL_KEYS_JSON: {e}")))?;
+            .map_err(|e| ApiError::BadRequest(format!("{env_name}: {e}")))?;
         match value {
             serde_json::Value::Object(map) if map.contains_key("keys") => {
                 let keys = map.get("keys").and_then(|v| v.as_array()).ok_or_else(|| {
-                    ApiError::BadRequest("LOCAL_KEYS_JSON.keys must be array".into())
+                    ApiError::BadRequest(format!("{env_name}.keys must be array"))
                 })?;
                 for item in keys {
                     let pk = item
                         .get("public_key")
                         .and_then(|v| v.as_str())
                         .ok_or_else(|| ApiError::BadRequest("key missing public_key".into()))?;
-                    let pem = item
+                    let material = item
                         .get("secret_key_pem")
+                        .or_else(|| item.get("secret_key_path"))
                         .and_then(|v| v.as_str())
-                        .ok_or_else(|| ApiError::BadRequest("key missing secret_key_pem".into()))?;
-                    ring.insert(pk.to_string(), pem.to_string());
+                        .ok_or_else(|| {
+                            ApiError::BadRequest(
+                                "key needs secret_key_pem or secret_key_path".into(),
+                            )
+                        })?;
+                    let pem = resolve_pem_material(material, env_name)?;
+                    ring.insert(pk.to_string(), pem);
                 }
             }
             serde_json::Value::Object(map) => {
                 for (pk, pem_v) in map {
-                    let pem = pem_v.as_str().ok_or_else(|| {
-                        ApiError::BadRequest("LOCAL_KEYS_JSON values must be PEM strings".into())
+                    let material = pem_v.as_str().ok_or_else(|| {
+                        ApiError::BadRequest(format!(
+                            "{env_name} values must be PEM strings or paths"
+                        ))
                     })?;
-                    ring.insert(pk, pem.to_string());
+                    let pem = resolve_pem_material(material, env_name)?;
+                    ring.insert(pk, pem);
                 }
             }
             _ => {
-                return Err(ApiError::BadRequest(
-                    "LOCAL_KEYS_JSON must be object map or {keys:[...]}".into(),
-                ));
+                return Err(ApiError::BadRequest(format!(
+                    "{env_name} must be object map or {{keys:[...]}}"
+                )));
             }
         }
         Ok(ring)
@@ -99,18 +111,72 @@ impl std::fmt::Debug for LocalKeyring {
     }
 }
 
+/// Inline PEM text, or a path to a PEM file on disk.
+fn resolve_pem_material(value: &str, env_name: &str) -> Result<String, ApiError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(ApiError::BadRequest(format!(
+            "{env_name}: empty secret material"
+        )));
+    }
+    if looks_like_pem(trimmed) {
+        return Ok(trimmed.to_string());
+    }
+    let path = Path::new(trimmed);
+    if path.is_file() {
+        return std::fs::read_to_string(path).map_err(|e| {
+            ApiError::BadRequest(format!("{env_name}: read {}: {e}", path.display()))
+        });
+    }
+    Err(ApiError::BadRequest(format!(
+        "{env_name}: value is neither PEM text nor an existing file path"
+    )))
+}
+
+fn looks_like_pem(s: &str) -> bool {
+    s.contains("-----BEGIN") && s.contains("PRIVATE KEY")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn parse_map_and_keys_array() {
-        let map = r#"{"01aa":"pem-a"}"#;
-        let ring = LocalKeyring::from_json(map).unwrap();
-        assert_eq!(ring.get("01aa").as_deref(), Some("pem-a"));
+        let map = r#"{"01aa":"-----BEGIN PRIVATE KEY-----\npem-a\n-----END PRIVATE KEY-----"}"#;
+        let ring = LocalKeyring::from_json(map, "LOCAL_KEYS_JSON").unwrap();
+        assert!(ring.get("01aa").unwrap().contains("pem-a"));
 
-        let arr = r#"{"keys":[{"public_key":"01bb","secret_key_pem":"pem-b"}]}"#;
-        let ring = LocalKeyring::from_json(arr).unwrap();
-        assert_eq!(ring.require("01bb").unwrap(), "pem-b");
+        let arr = r#"{"keys":[{"public_key":"01bb","secret_key_pem":"-----BEGIN PRIVATE KEY-----\npem-b\n-----END PRIVATE KEY-----"}]}"#;
+        let ring = LocalKeyring::from_json(arr, "LOCAL_KEYS_JSON").unwrap();
+        assert!(ring.require("01bb").unwrap().contains("pem-b"));
+    }
+
+    #[test]
+    fn load_pem_from_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("secret.pem");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            "-----BEGIN PRIVATE KEY-----\nfrom-file\n-----END PRIVATE KEY-----"
+        )
+        .unwrap();
+        drop(f);
+
+        let json = format!(
+            r#"{{"01cc":"{}"}}"#,
+            path.to_str().unwrap().replace('\\', "\\\\")
+        );
+        let ring = LocalKeyring::from_json(&json, "LOCAL_KEYS_JSON").unwrap();
+        assert!(ring.get("01cc").unwrap().contains("from-file"));
+
+        let json_arr = format!(
+            r#"{{"keys":[{{"public_key":"01dd","secret_key_path":"{}"}}]}}"#,
+            path.to_str().unwrap().replace('\\', "\\\\")
+        );
+        let ring = LocalKeyring::from_json(&json_arr, "LOCAL_KEYS_JSON_PRODUCTION").unwrap();
+        assert!(ring.require("01dd").unwrap().contains("from-file"));
     }
 }

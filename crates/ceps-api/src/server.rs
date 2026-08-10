@@ -5,8 +5,9 @@ use crate::middleware::cors::demo_cors;
 use crate::openapi::build_openapi;
 use crate::routes::{health_handler, hello_handler};
 use crate::state::AppState;
+use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use tracing::info;
+use tracing::{info, warn};
 
 #[cfg(feature = "swagger-ui")]
 use utoipa_swagger_ui::SwaggerUi;
@@ -43,6 +44,7 @@ pub fn create_app(
 
     let mut app = App::new()
         .app_data(web::Data::new(state))
+        .wrap(Logger::default())
         .wrap(demo_cors())
         .service(hello_handler)
         .service(health_handler)
@@ -191,8 +193,15 @@ pub async fn run_server(config: Config) -> std::io::Result<()> {
     info!(
         sign_backend = %state.config.sign_backend.as_str(),
         kms_url_set = state.config.kms_url_configured(),
+        local_keyring_len = state.config.local_keys.len(),
         "signing"
     );
+    if state.config.sign_backend.signs_for_callers() {
+        warn!(
+            sign_backend = %state.config.sign_backend.as_str(),
+            "signing enabled: keep this listener on a private network (any caller who names a loaded public key can request a put signature)"
+        );
+    }
     if cfg!(feature = "swagger-ui") {
         info!(docs = %format!("http://{bind}/docs/"), "openapi");
     }

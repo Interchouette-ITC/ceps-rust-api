@@ -223,8 +223,7 @@ fn extract_contract_hash(install_body: &serde_json::Value) -> Option<String> {
     }
     let blob = install_body.to_string();
     // 64 hex chars after optional hash- / entity-contract-
-    let re = regex_lite_hash(&blob);
-    re
+    regex_lite_hash(&blob)
 }
 
 fn regex_lite_hash(blob: &str) -> Option<String> {

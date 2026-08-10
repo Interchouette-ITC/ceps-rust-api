@@ -52,7 +52,7 @@ pub fn build_transaction_params(
 
     match envelope.submit {
         SubmitMode::Return => {
-            if state.config.sign_backend == SignBackend::Local {
+            if state.config.sign_backend.uses_local_keyring() {
                 if let Some(pem) = state.keyring.get(pk) {
                     let mut tx = TransactionParams::new(pem, &envelope.payment_amount).make_only();
                     tx = tx.with_chain_name(state.config.chain_name.clone());
@@ -66,9 +66,9 @@ pub fn build_transaction_params(
         }
         SubmitMode::Put => match state.config.sign_backend {
             SignBackend::None => Err(ApiError::NoSigner(
-                "submit=put requires SIGN_BACKEND local or kms".into(),
+                "submit=put requires SIGN_BACKEND local, local-production, or kms".into(),
             )),
-            SignBackend::Local => {
+            SignBackend::Local | SignBackend::LocalProduction => {
                 let pem = state.keyring.require(pk)?;
                 let mut tx = TransactionParams::new(pem, &envelope.payment_amount);
                 if !envelope.wait_on_put() {
