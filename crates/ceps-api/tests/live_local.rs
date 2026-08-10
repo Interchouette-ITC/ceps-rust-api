@@ -12,10 +12,12 @@
 mod harness;
 
 use actix_web::test;
+use ceps_client::CEP18Client;
 use ceps_rust_api::routes::hello::HelloResult;
 use ceps_rust_api::server::create_app;
 use ceps_rust_api::state::AppState;
 use harness::{rpc_reachable, state_from_env};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn require_user_keys(state: &AppState, n: usize) -> Option<Vec<String>> {
     let mut keys = state.keyring.public_keys();
@@ -38,6 +40,32 @@ fn skip_unless_live(state: &AppState) -> bool {
         return true;
     }
     false
+}
+
+fn unique_token_name(prefix: &str) -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!("{prefix}{secs}")
+}
+
+async fn resolve_cep18_contract_hash(
+    state: &AppState,
+    installer_pk: &str,
+    name: &str,
+) -> Option<String> {
+    let client = CEP18Client::new(
+        state.config.rpc_url.clone(),
+        Some(state.config.sse_url.clone()),
+        Some(state.config.chain_name.clone()),
+        None,
+    )
+    .ok()?;
+    client
+        .get_account_named_key(installer_pk, &format!("cep18_contract_hash_{name}"))
+        .await
+        .ok()
 }
 
 #[actix_web::test]
@@ -91,7 +119,8 @@ async fn cep18_make_only_uses_distinct_user_signers() {
                     "symbol": format!("U{i}"),
                     "decimals": 9,
                     "total_supply": "1000000000000",
-                    "wasm": "cep18"
+                    "wasm": "cep18",
+                    "enable_mint_and_burn": true
                 }))
                 .to_request(),
         )
@@ -128,7 +157,8 @@ async fn cep18_put_install_mint_transfer_across_users() {
     let installer = keys[0].clone();
     let recipient = keys[1].clone();
     let later = keys[2].clone();
-    let app = test::init_service(create_app(state)).await;
+    let name = unique_token_name("Live18");
+    let app = test::init_service(create_app(state.clone())).await;
 
     let install = test::call_service(
         &app,
@@ -139,11 +169,12 @@ async fn cep18_put_install_mint_transfer_across_users() {
                 "wait": "processed",
                 "signer": {"public_key": installer},
                 "payment_amount": "500000000000",
-                "name": "Live18",
+                "name": name,
                 "symbol": "L18",
                 "decimals": 9,
                 "total_supply": "1000000000000",
-                "wasm": "cep18"
+                "wasm": "cep18",
+                "enable_mint_and_burn": true
             }))
             .to_request(),
     )
@@ -164,12 +195,10 @@ async fn cep18_put_install_mint_transfer_across_users() {
         "install body: {install_body}"
     );
 
-    let contract_hash = extract_contract_hash(&install_body);
-    let Some(contract_hash) = contract_hash else {
-        eprintln!(
-            "skip mint/transfer: could not resolve contract hash from install result: {install_body}"
+    let Some(contract_hash) = resolve_cep18_contract_hash(&state, &installer, &name).await else {
+        panic!(
+            "could not resolve cep18_contract_hash_{name} for installer after install: {install_body}"
         );
-        return;
     };
 
     let mint = test::call_service(
@@ -188,10 +217,12 @@ async fn cep18_put_install_mint_transfer_across_users() {
             .to_request(),
     )
     .await;
+    let mint_status = mint.status();
+    let mint_bytes = test::read_body(mint).await;
     assert!(
-        mint.status().is_success(),
-        "mint to user2 failed: {}",
-        mint.status()
+        mint_status.is_success(),
+        "mint to user2 failed: {mint_status} {}",
+        String::from_utf8_lossy(&mint_bytes)
     );
 
     let transfer = test::call_service(
@@ -210,39 +241,11 @@ async fn cep18_put_install_mint_transfer_across_users() {
             .to_request(),
     )
     .await;
+    let transfer_status = transfer.status();
+    let transfer_bytes = test::read_body(transfer).await;
     assert!(
-        transfer.status().is_success(),
-        "transfer user2→user3 failed: {}",
-        transfer.status()
+        transfer_status.is_success(),
+        "transfer user2→user3 failed: {transfer_status} {}",
+        String::from_utf8_lossy(&transfer_bytes)
     );
-}
-
-/// Best-effort: CES / execution payloads sometimes embed the installed hash.
-fn extract_contract_hash(install_body: &serde_json::Value) -> Option<String> {
-    if let Some(h) = install_body
-        .pointer("/contract_hash")
-        .and_then(|v| v.as_str())
-    {
-        return Some(h.trim_start_matches("hash-").to_string());
-    }
-    let blob = install_body.to_string();
-    // 64 hex chars after optional hash- / entity-contract-
-    regex_lite_hash(&blob)
-}
-
-fn regex_lite_hash(blob: &str) -> Option<String> {
-    // Avoid new deps: scan for "hash-" + 64 hex
-    let bytes = blob.as_bytes();
-    let needle = b"hash-";
-    let mut i = 0;
-    while i + 5 + 64 <= bytes.len() {
-        if &bytes[i..i + 5] == needle {
-            let hex = &blob[i + 5..i + 5 + 64];
-            if hex.chars().all(|c| c.is_ascii_hexdigit()) {
-                return Some(hex.to_string());
-            }
-        }
-        i += 1;
-    }
-    None
 }
