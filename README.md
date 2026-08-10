@@ -2,7 +2,7 @@
 
 HTTP API for Casper **CEP-18**, **CEP-78**, **CEP-85**, and **CEP-95**, built with [Actix Web](https://actix.rs/) and [utoipa](https://github.com/juhaku/utoipa).
 
-It sits on [`ceps-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) for CEP args, transaction make, and wait, and on [`casper-rust-wasm-sdk`](https://github.com/casper-ecosystem/casper-rust-wasm-sdk) for sign and put. Optional signing uses a local PEM keyring or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
+It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) for CEP args, transaction make, and wait, and on [`casper-rust-wasm-sdk`](https://github.com/casper-ecosystem/casper-rust-wasm-sdk) for sign and put. Optional signing uses a local PEM keyring or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
 
 Canonical repo: [Interchouette-ITC/ceps-rust-api](https://github.com/Interchouette-ITC/ceps-rust-api).
 
@@ -34,7 +34,7 @@ make verify-slices   # same feature slices as CI
 | Piece | Role |
 | --- | --- |
 | This API | Actix routes, OpenAPI, feature-gated add-ons |
-| `ceps-client` | CEP entrypoints, make → Transaction JSON, wait |
+| `ceps-rust-ts-client` | CEP entrypoints, make → Transaction JSON, wait |
 | `casper-rust-wasm-sdk` | Sign helpers, put transaction |
 | `kms-secp256k1-api` | Optional Docker HTTP signer (not a Rust path-dep) |
 
