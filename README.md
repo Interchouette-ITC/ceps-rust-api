@@ -83,6 +83,8 @@ curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
 
 With `SIGN_BACKEND=kms`, create via `POST /v1/kms/create-key` and use the same fund/install envelopes with that public key.
 
+After a CEP-95 Odra install, resolve hashes with `POST /v1/cep95/bind-odra-install` (`installer_public_key`, `package_hash_key_name`; optional `label` registers an instance).
+
 ## Live harness (tests only)
 
 Integration helpers under `crates/ceps-api/tests/integration/` load a faucet PEM from env (never from HTTP):
