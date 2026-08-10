@@ -52,10 +52,36 @@ Socle: health, hello, instances, wasm list, chain queries. Add-ons: sign backend
 # API only (point CEPS_RPC_URL at a reachable node)
 make docker-run
 
-# API + KMS peer
-make docker-run-kms
-# then set SIGN_BACKEND=kms and KMS_URL=http://kms-secp256k1-api:4000 on the API service
+# API + KMS peer (+ LocalStack under profile kms)
+SIGN_BACKEND=kms KMS_URL=http://kms-secp256k1-api:4000 make docker-run-kms
 ```
+
+## Custodial demo (local signer)
+
+Needs a reachable RPC and some CSPR already on a key the API can sign (bootstrap out of band or via the live harness).
+
+```bash
+# Boot API with local signing (empty keyring until create)
+SIGN_BACKEND=local CEPS_RPC_URL=http://127.0.0.1:11101 make run
+
+# 1) Create a key into the process keyring
+curl -sS -X POST http://127.0.0.1:8080/v1/keys/create \
+  -H 'content-type: application/json' \
+  -d '{"algo":"ed25519"}'
+# → { "public_key": "01…" }
+
+# 2) Fund that key from a signer already in LOCAL_KEYS_JSON / prior create
+curl -sS -X POST http://127.0.0.1:8080/v1/chain/fund \
+  -H 'content-type: application/json' \
+  -d '{"submit":"put","wait":"accepted","signer":{"public_key":"<funder>"},"payment_amount":"1000000000","target":"<new>","amount":"2500000000"}'
+
+# 3) Install CEP-18 (wasm under CEPS_WASM_ROOT; submit=return to inspect JSON first)
+curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
+  -H 'content-type: application/json' \
+  -d '{"submit":"return","signer":{"public_key":"<new>"},"payment_amount":"500000000000","name":"Demo","symbol":"DMO","decimals":9,"total_supply":"1000000000000","wasm":"cep18"}'
+```
+
+With `SIGN_BACKEND=kms`, create via `POST /v1/kms/create-key` and use the same fund/install envelopes with that public key.
 
 ## Live harness (tests only)
 
