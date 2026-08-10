@@ -1,79 +1,34 @@
-//! Live bootstrap: faucet PEM funds a target (tests only).
+//! Live checks against a reachable node when configured.
 //!
-//! Order: resolve target (`CEPS_FUND_TARGET` or KMS createKey directly) → SDK transfer
-//! FROM faucet PEM (typically NCTL faucet) → optional balance query on the API.
+//! Uses pre-funded keys from product env (`LOCAL_KEYS_JSON`, typically NCTL
+//! faucet/users). This suite does not create keys or fund accounts.
 
-#![cfg(all(feature = "sign-local", feature = "tx-return"))]
+#![cfg(feature = "tx-return")]
 
 #[path = "integration/harness.rs"]
 mod harness;
 
 use actix_web::test;
 use ceps_api::server::create_app;
-use harness::{
-    fund_from_faucet, kms_create_key, load_faucet_pem, rpc_reachable, state_with_faucet,
-};
+use harness::{rpc_reachable, state_from_env};
 
 #[actix_web::test]
-async fn faucet_funds_target_when_configured() {
-    let Some((faucet_pk, faucet_pem)) = load_faucet_pem() else {
-        eprintln!("skip live bootstrap: set CEPS_FAUCET_PEM or CEPS_FAUCET_PEM_PATH");
-        return;
-    };
-
-    let kms_url = std::env::var("KMS_URL")
-        .ok()
-        .filter(|u| !u.trim().is_empty());
-    let fund_target = std::env::var("CEPS_FUND_TARGET")
-        .ok()
-        .filter(|t| !t.trim().is_empty());
-
-    let state = state_with_faucet(&faucet_pk, &faucet_pem, kms_url.clone());
+async fn chain_balance_when_rpc_and_local_key_configured() {
+    let state = state_from_env();
     if !rpc_reachable(&state.config.rpc_url).await {
-        eprintln!(
-            "skip live bootstrap: RPC unreachable at {}",
-            state.config.rpc_url
-        );
+        eprintln!("skip live: RPC unreachable at {}", state.config.rpc_url);
         return;
     }
-
-    let target = if let Some(t) = fund_target {
-        t
-    } else if let Some(ref url) = kms_url {
-        match kms_create_key(url).await {
-            Ok(pk) => pk,
-            Err(e) => {
-                eprintln!("skip live bootstrap: kms createKey failed: {e}");
-                return;
-            }
-        }
-    } else {
-        eprintln!("skip live bootstrap: set CEPS_FUND_TARGET (e.g. NCTL user) or KMS_URL");
+    let Some(pk) = state.keyring.public_keys().into_iter().next() else {
+        eprintln!("skip live: set LOCAL_KEYS_JSON with a funded NCTL public key");
         return;
     };
-
-    let hash = match fund_from_faucet(
-        &state.config.rpc_url,
-        &state.config.chain_name,
-        &faucet_pem,
-        &target,
-        "2500000000",
-        "1000000000",
-    )
-    .await
-    {
-        Ok(h) => h,
-        Err(e) => {
-            panic!("harness fund failed: {e}");
-        }
-    };
-    assert!(!hash.is_empty());
 
     let app = test::init_service(create_app(state)).await;
     let resp = test::call_service(
         &app,
         test::TestRequest::get()
-            .uri(&format!("/v1/chain/balance/{target}"))
+            .uri(&format!("/v1/chain/balance/{pk}"))
             .to_request(),
     )
     .await;
