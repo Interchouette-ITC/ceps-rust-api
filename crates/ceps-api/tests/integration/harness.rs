@@ -53,13 +53,17 @@ pub fn load_faucet_pem() -> Option<(String, String)> {
 }
 
 /// App state with local signing and faucet key in the process keyring.
-pub fn state_with_faucet(public_key: &str, pem: &str) -> AppState {
+/// Optional `kms_url` wires create-key for the live fund bootstrap.
+pub fn state_with_faucet(public_key: &str, pem: &str, kms_url: Option<String>) -> AppState {
     let mut cfg = Config::default();
     cfg.sign_backend = SignBackend::Local;
     cfg.rpc_url = std::env::var("CEPS_RPC_URL").unwrap_or_else(|_| "http://127.0.0.1:11101".into());
     cfg.sse_url =
         std::env::var("CEPS_SSE_URL").unwrap_or_else(|_| "http://127.0.0.1:18101/events".into());
     cfg.chain_name = std::env::var("CEPS_CHAIN_NAME").unwrap_or_else(|_| "casper-net-1".into());
+    if let Some(url) = kms_url {
+        cfg.kms_url = url;
+    }
     let ring = LocalKeyring::new();
     ring.insert(public_key.to_string(), pem.to_string());
     cfg.local_keys = ring;

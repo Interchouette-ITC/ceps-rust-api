@@ -3,14 +3,14 @@
 use crate::error::ApiError;
 use crate::routes::common::cep_core;
 use crate::state::AppState;
-#[cfg(any(feature = "custody", feature = "chain-put"))]
+#[cfg(any(feature = "sign-kms", feature = "chain-put"))]
 use crate::tx::PipelineOutcome;
-#[cfg(any(feature = "custody", feature = "chain-put"))]
+#[cfg(any(feature = "sign-kms", feature = "chain-put"))]
 use actix_web::post;
 use actix_web::{get, web, HttpResponse};
-#[cfg(feature = "custody")]
+#[cfg(feature = "sign-kms")]
 use casper_rust_wasm_sdk::types::transaction_params::transaction_str_params::TransactionStrParams;
-#[cfg(any(feature = "custody", feature = "chain-put"))]
+#[cfg(any(feature = "sign-kms", feature = "chain-put"))]
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
@@ -149,7 +149,7 @@ pub async fn chain_put_transaction(
     )))
 }
 
-#[cfg(feature = "custody")]
+#[cfg(feature = "sign-kms")]
 #[derive(Deserialize, ToSchema)]
 pub struct FundBody {
     #[serde(flatten)]
@@ -158,7 +158,7 @@ pub struct FundBody {
     pub amount: String,
 }
 
-#[cfg(feature = "custody")]
+#[cfg(feature = "sign-kms")]
 #[utoipa::path(
     post,
     path = "/v1/chain/fund",
@@ -166,7 +166,7 @@ pub struct FundBody {
     responses((status = 200, description = "Native transfer result", body = PipelineOutcome)),
     tag = "Chain"
 )]
-#[cfg(feature = "custody")]
+#[cfg(feature = "sign-kms")]
 #[post("/v1/chain/fund")]
 pub async fn chain_fund(
     state: web::Data<AppState>,

@@ -35,7 +35,7 @@ use utoipa::OpenApi;
     tags(
         (name = "Health", description = "Liveness and hello"),
         (name = "KMS", description = "Key management proxy (kms-secp256k1-api)"),
-        (name = "Keys", description = "Local custody keys"),
+        (name = "Keys", description = "Local keyring listing (static LOCAL_KEYS_JSON)"),
         (name = "Chain", description = "Native CSPR and transaction queries"),
         (name = "Instances", description = "CEP contract instance registry and wasm"),
         (name = "CEP-18", description = "Fungible token"),
@@ -56,11 +56,6 @@ pub struct ApiDoc;
 #[openapi(paths(crate::routes::chain::chain_put_transaction))]
 struct ApiDocChainPut;
 
-#[cfg(feature = "custody")]
-#[derive(OpenApi)]
-#[openapi(paths(crate::routes::chain::chain_fund, crate::routes::keys::keys_create,))]
-struct ApiDocCustody;
-
 #[cfg(feature = "sign-local")]
 #[derive(OpenApi)]
 #[openapi(paths(crate::routes::keys::keys_list))]
@@ -69,6 +64,7 @@ struct ApiDocSignLocal;
 #[cfg(feature = "sign-kms")]
 #[derive(OpenApi)]
 #[openapi(paths(
+    crate::routes::chain::chain_fund,
     crate::routes::keys::kms_create_key,
     crate::routes::keys::kms_list_keys,
 ))]
@@ -146,8 +142,6 @@ pub fn build_openapi() -> utoipa::openapi::OpenApi {
     let mut doc = ApiDoc::openapi();
     #[cfg(feature = "chain-put")]
     doc.merge(ApiDocChainPut::openapi());
-    #[cfg(feature = "custody")]
-    doc.merge(ApiDocCustody::openapi());
     #[cfg(feature = "sign-local")]
     doc.merge(ApiDocSignLocal::openapi());
     #[cfg(feature = "sign-kms")]

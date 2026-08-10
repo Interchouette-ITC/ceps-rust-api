@@ -12,12 +12,6 @@
     clippy::double_must_use
 )]
 
-#[cfg(all(
-    feature = "custody",
-    not(any(feature = "sign-local", feature = "sign-kms"))
-))]
-compile_error!("feature `custody` requires `sign-local` and/or `sign-kms`");
-
 pub mod config;
 pub mod constants;
 pub mod error;
@@ -33,8 +27,5 @@ pub mod tx;
 
 #[cfg(feature = "sign-kms")]
 pub mod kms;
-
-#[cfg(feature = "custody")]
-pub mod custody;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

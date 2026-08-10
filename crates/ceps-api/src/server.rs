@@ -64,17 +64,13 @@ pub fn create_app(
     {
         app = app.service(crate::routes::chain::chain_put_transaction);
     }
-    #[cfg(feature = "custody")]
-    {
-        app = app.service(crate::routes::chain::chain_fund);
-        app = app.service(crate::routes::keys::keys_create);
-    }
     #[cfg(feature = "sign-local")]
     {
         app = app.service(crate::routes::keys::keys_list);
     }
     #[cfg(feature = "sign-kms")]
     {
+        app = app.service(crate::routes::chain::chain_fund);
         app = app.service(crate::routes::keys::kms_create_key);
         app = app.service(crate::routes::keys::kms_list_keys);
     }

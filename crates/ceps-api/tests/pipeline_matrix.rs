@@ -83,21 +83,30 @@ async fn submit_return_make_only_transfer() {
     assert!(!body["transaction_hash"].as_str().unwrap().is_empty());
 }
 
-#[cfg(feature = "custody")]
+#[cfg(feature = "sign-kms")]
+#[cfg(feature = "tx-return")]
 #[actix_web::test]
-async fn keys_create_ed25519() {
+async fn chain_fund_return_make_only() {
     let app = test::init_service(create_app(app_none())).await;
+    let initiator = format!("01{}", "11".repeat(32));
+    let target = format!("01{}", "22".repeat(32));
     let resp = test::call_service(
         &app,
         test::TestRequest::post()
-            .uri("/v1/keys/create")
-            .set_json(serde_json::json!({"algo": "ed25519"}))
+            .uri("/v1/chain/fund")
+            .set_json(serde_json::json!({
+                "submit": "return",
+                "signer": {"public_key": initiator},
+                "payment_amount": "1000000000",
+                "target": target,
+                "amount": "2500000000"
+            }))
             .to_request(),
     )
     .await;
-    assert!(resp.status().is_success());
+    assert!(resp.status().is_success(), "status {}", resp.status());
     let body: serde_json::Value = test::read_body_json(resp).await;
-    assert!(body["public_key"].as_str().unwrap().starts_with("01"));
+    assert!(body.get("transaction").is_some());
 }
 
 #[cfg(feature = "chain-put")]

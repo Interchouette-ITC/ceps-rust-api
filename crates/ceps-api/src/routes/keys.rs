@@ -1,34 +1,16 @@
-//! Custody key creation and KMS proxy routes.
+//! Custody key listing and KMS proxy routes.
+//!
+//! Key *creation* is KMS-only (`POST /v1/kms/create-key`). Local signing uses a
+//! static keyring from `LOCAL_KEYS_JSON` (for example NCTL user PEMs).
 
-#[cfg(any(feature = "custody", feature = "sign-kms"))]
+#[cfg(feature = "sign-kms")]
 use crate::error::ApiError;
-#[cfg(any(feature = "custody", feature = "sign-local", feature = "sign-kms"))]
+#[cfg(any(feature = "sign-local", feature = "sign-kms"))]
 use crate::state::AppState;
-#[cfg(any(feature = "custody", feature = "sign-local", feature = "sign-kms"))]
+#[cfg(any(feature = "sign-local", feature = "sign-kms"))]
 use actix_web::{get, post, web, HttpResponse};
 use serde::Serialize;
 use utoipa::ToSchema;
-
-#[cfg(feature = "custody")]
-use crate::custody::{create_local_key, CreateKeyRequest, CreateKeyResult};
-
-#[cfg(feature = "custody")]
-#[utoipa::path(
-    post,
-    path = "/v1/keys/create",
-    request_body = CreateKeyRequest,
-    responses((status = 200, description = "Created key public material", body = CreateKeyResult)),
-    tag = "Keys"
-)]
-#[cfg(feature = "custody")]
-#[post("/v1/keys/create")]
-pub async fn keys_create(
-    state: web::Data<AppState>,
-    body: web::Json<CreateKeyRequest>,
-) -> Result<HttpResponse, ApiError> {
-    let result = create_local_key(&state.keyring, body.algo)?;
-    Ok(HttpResponse::Ok().json(result))
-}
 
 #[derive(Serialize, ToSchema)]
 pub struct KeyringList {

@@ -8,7 +8,7 @@ DOCKERFILE ?= docker/Dockerfile
 DOCKER_BUILDKIT ?= 1
 COMPOSE ?= docker/docker-compose.yml
 
-FEATURES ?= ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody
+FEATURES ?= ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
 CARGO_FEATURES := --features $(FEATURES)
 
 CARGO := env -u CARGO_TARGET_DIR -u PLAYWRIGHT_BROWSERS_PATH cargo

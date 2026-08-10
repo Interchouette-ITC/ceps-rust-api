@@ -2,7 +2,7 @@
 FROM rust:slim-trixie AS builder
 
 # Match Makefile FEATURES (demo image: all CEP + add-ons). Override with --build-arg.
-ARG FEATURES=ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody
+ARG FEATURES=ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   pkg-config \
