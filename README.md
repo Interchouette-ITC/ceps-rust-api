@@ -15,7 +15,7 @@ make run
 
 | URL                                            | Purpose                           |
 | ---------------------------------------------- | --------------------------------- |
-| `http://127.0.0.1:8080/`                       | Hello (features + `sign_backend`) |
+| `http://127.0.0.1:8080/`                       | Hello (`name`, `version`, features, signer, RPC) |
 | `http://127.0.0.1:8080/health`                 | Liveness                          |
 | `http://127.0.0.1:8080/docs/`                  | Swagger UI                        |
 | `http://127.0.0.1:8080/docs/ceps-openapi.json` | OpenAPI JSON                      |
@@ -168,14 +168,20 @@ SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000 make run
 
 After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `installer_public_key` and `package_hash_key_name` (returns contract/package hashes).
 
-### Live harness (tests only)
+### Live harness (Rust integration)
+
+Ops scripts prepare env; assertions are Rust tests (not bash e2e).
 
 ```bash
-# Put funded NCTL faucet/user PEMs into LOCAL_KEYS_JSON, then:
-cargo test -p ceps-rust-api --test live_bootstrap -- --nocapture
+# Local: export funded NCTL faucet into LOCAL_KEYS_JSON, then:
+export LOCAL_KEYS_JSON="$(NCTL_CONTAINER=casper-nctl-2-docker-dev scripts/export-nctl-local-keys.sh)"
+SIGN_BACKEND=local cargo test -p ceps-rust-api --test live_local -- --nocapture
+
+# KMS: createKey on KMS, fund with scripts/fund-kms-from-nctl.sh, then:
+# CEPS_KMS_PUBLIC_KEY=… SIGN_BACKEND=kms KMS_URL=… cargo test -p ceps-rust-api --test live_kms -- --nocapture
 ```
 
-Helpers live under `crates/ceps-api/tests/integration/`. Application code under `crates/` does not load faucet or NCTL concepts.
+Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. Application code under `crates/` does not load faucet or NCTL concepts.
 
 ## Make targets
 
@@ -186,8 +192,8 @@ Helpers live under `crates/ceps-api/tests/integration/`. Application code under 
 | `make verify-slices`                 | CI feature-slice builds                    |
 | `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
 | `make docker-run` / `docker-run-kms` | Compose up                                 |
-| `scripts/ci-e2e-local.sh`            | Real NCTL + local keys e2e                 |
-| `scripts/ci-e2e-kms.sh`              | Real KMS + fund + API e2e                  |
+| `scripts/export-nctl-local-keys.sh`  | Ops: print `LOCAL_KEYS_JSON` for NCTL faucet |
+| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a public key from NCTL faucet  |
 | `make version-show`                  | Crate / image tag                          |
 
 ## License

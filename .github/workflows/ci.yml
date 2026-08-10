@@ -102,8 +102,9 @@ jobs:
           path: /tmp/ceps-rust-api-image.tar.gz
           if-no-files-found: error
 
-  e2e:
-    needs: preview
+  # Ops glue (docker + fund/export scripts) then Rust live_* integration tests.
+  live:
+    needs: lint-test
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -132,20 +133,53 @@ jobs:
           workspaces: ceps-rust-api
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
-      - name: Release binary
-        run: env -u CARGO_TARGET_DIR cargo build --release -p ceps-rust-api --features ${{ env.FEATURES }}
-      - name: E2E local (NCTL + LOCAL_KEYS_JSON)
+      - name: Start NCTL
         run: |
-          chmod +x scripts/ci-e2e-local.sh scripts/fund-kms-from-nctl.sh scripts/ci-e2e-kms.sh
-          NCTL_CONTAINER=casper-nctl-2-docker-ci \
-            NCTL_IMAGE=interchouette/casper-nctl-2-docker:dev \
-            API_BIN="$PWD/target/release/ceps-rust-api" \
-            APP_PORT=8080 \
-            ./scripts/ci-e2e-local.sh
-      - name: E2E kms (LocalStack + KMS create + fund + API)
+          docker rm -f casper-nctl-2-docker-ci >/dev/null 2>&1 || true
+          docker run -d --name casper-nctl-2-docker-ci \
+            -p 11101-11105:11101-11105 \
+            -p 18101-18105:18101-18105 \
+            interchouette/casper-nctl-2-docker:dev
+          for i in $(seq 1 90); do
+            if curl -sS -m 2 -X POST http://127.0.0.1:11101/rpc \
+              -H 'content-type: application/json' \
+              -d '{"jsonrpc":"2.0","id":1,"method":"info_get_status","params":[]}' \
+              | grep -q api_version; then
+              echo "rpc up"; exit 0
+            fi
+            sleep 5
+          done
+          echo "rpc timeout"; exit 1
+      - name: Export LOCAL_KEYS_JSON (ops)
         run: |
-          NCTL_CONTAINER=casper-nctl-2-docker-ci \
-            API_BIN="$PWD/target/release/ceps-rust-api" \
-            APP_PORT=8081 \
-            KMS_URL=http://127.0.0.1:4000 \
-            ./scripts/ci-e2e-kms.sh
+          chmod +x scripts/export-nctl-local-keys.sh scripts/fund-kms-from-nctl.sh
+          {
+            echo "LOCAL_KEYS_JSON<<EOF"
+            NCTL_CONTAINER=casper-nctl-2-docker-ci ./scripts/export-nctl-local-keys.sh
+            echo "EOF"
+            echo "SIGN_BACKEND=local"
+            echo "CEPS_RPC_URL=http://127.0.0.1:11101"
+            echo "CEPS_SSE_URL=http://127.0.0.1:18101/events"
+            echo "CEPS_CHAIN_NAME=casper-net-1"
+          } >> "$GITHUB_ENV"
+      - name: Live local (Rust)
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-rust-api --features ${{ env.FEATURES }} --test live_local -- --nocapture
+      - name: Start KMS stack (ops)
+        run: docker compose -f docker/docker-compose.yml --profile kms up -d kms-localstack kms-secp256k1-api
+      - name: Create + fund KMS key (ops)
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sS -m 2 http://127.0.0.1:4000/ >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          BODY=$(curl -sS -X POST http://127.0.0.1:4000/createKey -H 'content-type: application/json' -d '{}')
+          PK=$(echo "$BODY" | jq -r '.publicKey // .public_key // empty')
+          test -n "$PK"
+          NCTL_CONTAINER=casper-nctl-2-docker-ci ./scripts/fund-kms-from-nctl.sh "$PK"
+          {
+            echo "SIGN_BACKEND=kms"
+            echo "KMS_URL=http://127.0.0.1:4000"
+            echo "CEPS_KMS_PUBLIC_KEY=$PK"
+          } >> "$GITHUB_ENV"
+      - name: Live kms (Rust)
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-rust-api --features ${{ env.FEATURES }} --test live_kms -- --nocapture
