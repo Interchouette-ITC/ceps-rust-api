@@ -13,7 +13,6 @@ pub struct CompiledFeatures {
     pub sign_local: bool,
     pub sign_kms: bool,
     pub chain_put: bool,
-    pub custody: bool,
     pub swagger_ui: bool,
 }
 
@@ -29,7 +28,6 @@ impl CompiledFeatures {
             sign_local: cfg!(feature = "sign-local"),
             sign_kms: cfg!(feature = "sign-kms"),
             chain_put: cfg!(feature = "chain-put"),
-            custody: cfg!(feature = "custody"),
             swagger_ui: cfg!(feature = "swagger-ui"),
         }
     }

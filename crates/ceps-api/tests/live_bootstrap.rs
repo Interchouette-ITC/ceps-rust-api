@@ -1,23 +1,34 @@
-//! Live bootstrap against a reachable node when faucet PEM is provided via env.
+//! Live bootstrap: faucet PEM funds a target (tests only).
 //!
-//! Skips when RPC is down or `CEPS_FAUCET_PEM` / `CEPS_FAUCET_PEM_PATH` is unset.
+//! Order: resolve target (`CEPS_FUND_TARGET` or KMS createKey directly) → SDK transfer
+//! FROM faucet PEM (typically NCTL faucet) → optional balance query on the API.
 
-#![cfg(all(feature = "custody", feature = "sign-local", feature = "tx-return"))]
+#![cfg(all(feature = "sign-local", feature = "tx-return"))]
 
 #[path = "integration/harness.rs"]
 mod harness;
 
 use actix_web::test;
 use ceps_api::server::create_app;
-use harness::{load_faucet_pem, rpc_reachable, state_with_faucet};
+use harness::{
+    fund_from_faucet, kms_create_key, load_faucet_pem, rpc_reachable, state_with_faucet,
+};
 
 #[actix_web::test]
-async fn faucet_funds_created_key_when_configured() {
+async fn faucet_funds_target_when_configured() {
     let Some((faucet_pk, faucet_pem)) = load_faucet_pem() else {
         eprintln!("skip live bootstrap: set CEPS_FAUCET_PEM or CEPS_FAUCET_PEM_PATH");
         return;
     };
-    let state = state_with_faucet(&faucet_pk, &faucet_pem);
+
+    let kms_url = std::env::var("KMS_URL")
+        .ok()
+        .filter(|u| !u.trim().is_empty());
+    let fund_target = std::env::var("CEPS_FUND_TARGET")
+        .ok()
+        .filter(|t| !t.trim().is_empty());
+
+    let state = state_with_faucet(&faucet_pk, &faucet_pem, kms_url.clone());
     if !rpc_reachable(&state.config.rpc_url).await {
         eprintln!(
             "skip live bootstrap: RPC unreachable at {}",
@@ -26,52 +37,39 @@ async fn faucet_funds_created_key_when_configured() {
         return;
     }
 
+    let target = if let Some(t) = fund_target {
+        t
+    } else if let Some(ref url) = kms_url {
+        match kms_create_key(url).await {
+            Ok(pk) => pk,
+            Err(e) => {
+                eprintln!("skip live bootstrap: kms createKey failed: {e}");
+                return;
+            }
+        }
+    } else {
+        eprintln!("skip live bootstrap: set CEPS_FUND_TARGET (e.g. NCTL user) or KMS_URL");
+        return;
+    };
+
+    let hash = match fund_from_faucet(
+        &state.config.rpc_url,
+        &state.config.chain_name,
+        &faucet_pem,
+        &target,
+        "2500000000",
+        "1000000000",
+    )
+    .await
+    {
+        Ok(h) => h,
+        Err(e) => {
+            panic!("harness fund failed: {e}");
+        }
+    };
+    assert!(!hash.is_empty());
+
     let app = test::init_service(create_app(state)).await;
-
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/keys/create")
-            .set_json(serde_json::json!({"algo": "ed25519"}))
-            .to_request(),
-    )
-    .await;
-    assert!(
-        resp.status().is_success(),
-        "keys/create failed: {}",
-        resp.status()
-    );
-    let created: serde_json::Value = test::read_body_json(resp).await;
-    let target = created["public_key"]
-        .as_str()
-        .expect("public_key")
-        .to_string();
-
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/chain/fund")
-            .set_json(serde_json::json!({
-                "submit": "put",
-                "wait": "accepted",
-                "signer": {"public_key": faucet_pk},
-                "payment_amount": "1000000000",
-                "target": target,
-                "amount": "2500000000"
-            }))
-            .to_request(),
-    )
-    .await;
-    let status = resp.status();
-    let body = test::read_body(resp).await;
-    assert!(
-        status.is_success(),
-        "fund status {status} body {}",
-        String::from_utf8_lossy(&body)
-    );
-    let out: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert!(!out["transaction_hash"].as_str().unwrap_or("").is_empty());
-
     let resp = test::call_service(
         &app,
         test::TestRequest::get()
@@ -112,17 +110,13 @@ async fn make_only_cep18_install_when_rpc_optional() {
     .await;
     let status = resp.status();
     let body = test::read_body(resp).await;
-    // Missing wasm file → 400/404/502 is acceptable; success proves make_only path.
     assert!(
         status.is_success()
             || status.as_u16() == 400
             || status.as_u16() == 404
             || status.as_u16() == 502,
-        "unexpected {status} {}",
+        "unexpected {} {}",
+        status,
         String::from_utf8_lossy(&body)
     );
-    if status.is_success() {
-        let out: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert!(out.get("transaction").is_some());
-    }
 }

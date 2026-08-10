@@ -43,8 +43,8 @@ jobs:
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy
-        run: env -u CARGO_TARGET_DIR cargo clippy -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody -- -D warnings -D clippy::all
+        run: env -u CARGO_TARGET_DIR cargo clippy -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put -- -D warnings -D clippy::all
       - name: test
-        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody -- --nocapture
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put -- --nocapture
       - name: feature-slices
         run: make verify-slices

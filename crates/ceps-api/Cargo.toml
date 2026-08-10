@@ -25,7 +25,6 @@ default = [
   "sign-local",
   "sign-kms",
   "chain-put",
-  "custody",
 ]
 swagger-ui = ["dep:utoipa-swagger-ui"]
 cep18 = []
@@ -33,7 +32,7 @@ cep78 = []
 cep85 = []
 cep95 = []
 ceps-all = ["cep18", "cep78", "cep85", "cep95"]
-# Full demo set (same as package default). Prefer naming features explicitly in docs.
+# Full default set. Prefer naming features explicitly in docs.
 all = [
   "ceps-all",
   "swagger-ui",
@@ -41,13 +40,11 @@ all = [
   "sign-local",
   "sign-kms",
   "chain-put",
-  "custody",
 ]
 tx-return = []
 sign-local = []
 sign-kms = []
 chain-put = []
-custody = ["sign-local"]
 
 [dependencies]
 actix-web = { workspace = true }
@@ -73,3 +70,5 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "tim
 wiremock = "0.6"
 reqwest = { workspace = true }
 serde_json = { workspace = true }
+ceps-client = { workspace = true }
+casper-rust-wasm-sdk = { workspace = true }

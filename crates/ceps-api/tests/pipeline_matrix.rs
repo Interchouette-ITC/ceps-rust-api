@@ -83,23 +83,6 @@ async fn submit_return_make_only_transfer() {
     assert!(!body["transaction_hash"].as_str().unwrap().is_empty());
 }
 
-#[cfg(feature = "custody")]
-#[actix_web::test]
-async fn keys_create_ed25519() {
-    let app = test::init_service(create_app(app_none())).await;
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/keys/create")
-            .set_json(serde_json::json!({"algo": "ed25519"}))
-            .to_request(),
-    )
-    .await;
-    assert!(resp.status().is_success());
-    let body: serde_json::Value = test::read_body_json(resp).await;
-    assert!(body["public_key"].as_str().unwrap().starts_with("01"));
-}
-
 #[cfg(feature = "chain-put")]
 #[actix_web::test]
 async fn chain_put_rejects_invalid_json() {
@@ -218,17 +201,21 @@ async fn live_chain_account_when_rpc_up() {
 
 #[cfg(feature = "sign-kms")]
 #[actix_web::test]
-async fn kms_proxy_create_key_via_wiremock() {
+async fn kms_sign_client_via_wiremock() {
     use ceps_api::config::SignBackend;
-    use wiremock::matchers::{method, path};
+    use ceps_api::kms::KmsClient;
+    use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let server = MockServer::start().await;
     Mock::given(method("POST"))
-        .and(path("/createKey"))
+        .and(path("/signTransaction"))
+        .and(query_param(
+            "keys",
+            "0202ccddeeff00112233445566778899aabbccddeeff00112233445566778899aabb",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "public_key": "0202ccddeeff00112233445566778899aabbccddeeff00112233445566778899aabb",
-            "address": "account-hash-demo"
+            "transaction": {"ok": true}
         })))
         .mount(&server)
         .await;
@@ -236,47 +223,16 @@ async fn kms_proxy_create_key_via_wiremock() {
     let mut cfg = Config::default();
     cfg.sign_backend = SignBackend::Kms;
     cfg.kms_url = server.uri();
-    let app = test::init_service(create_app(AppState::new(cfg))).await;
-
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/kms/create-key")
-            .to_request(),
-    )
-    .await;
-    assert!(resp.status().is_success(), "status {}", resp.status());
-    let body: serde_json::Value = test::read_body_json(resp).await;
-    assert!(body["public_key"].as_str().unwrap().starts_with("02"));
-}
-
-#[cfg(feature = "sign-kms")]
-#[actix_web::test]
-async fn live_kms_list_keys_when_url_set() {
-    let Ok(url) = std::env::var("KMS_URL") else {
-        eprintln!("skip live KMS: set KMS_URL to hit a real peer");
-        return;
-    };
-    if url.trim().is_empty() {
-        eprintln!("skip live KMS: KMS_URL empty");
-        return;
-    }
-    let mut cfg = Config::default();
-    cfg.sign_backend = ceps_api::config::SignBackend::Kms;
-    cfg.kms_url = url;
-    let app = test::init_service(create_app(AppState::new(cfg))).await;
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::get()
-            .uri("/v1/kms/list-keys")
-            .to_request(),
-    )
-    .await;
-    assert!(
-        resp.status().is_success() || resp.status().as_u16() == 502,
-        "unexpected {}",
-        resp.status()
-    );
+    let _state = AppState::new(cfg);
+    let client = KmsClient::new(server.uri());
+    let signed = client
+        .sign_transaction(
+            "0202ccddeeff00112233445566778899aabbccddeeff00112233445566778899aabb",
+            &serde_json::json!({"tx": 1}),
+        )
+        .await
+        .expect("sign");
+    assert_eq!(signed["transaction"]["ok"], true);
 }
 
 #[cfg(not(feature = "chain-put"))]

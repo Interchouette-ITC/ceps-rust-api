@@ -1,21 +1,14 @@
 //! HTTP client for kms-secp256k1-api (sign-kms feature).
+//!
+//! Used only for signing puts. Key create/list stay on the KMS peer HTTP API.
 
 use crate::error::ApiError;
-use serde::Deserialize;
-use serde::Serialize;
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub struct KmsClient {
     base: String,
     http: reqwest::Client,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateKeyResponse {
-    pub public_key: String,
-    #[serde(default)]
-    pub address: Option<String>,
 }
 
 impl KmsClient {
@@ -25,23 +18,6 @@ impl KmsClient {
             base: base_url.into().trim_end_matches('/').to_string(),
             http: reqwest::Client::new(),
         }
-    }
-
-    pub async fn create_key(&self) -> Result<CreateKeyResponse, ApiError> {
-        let url = format!("{}/createKey", self.base);
-        let resp = self
-            .http
-            .post(&url)
-            .send()
-            .await
-            .map_err(|e| ApiError::Kms(e.to_string()))?;
-        if !resp.status().is_success() {
-            let body = resp.text().await.unwrap_or_default();
-            return Err(ApiError::Kms(format!("createKey failed: {body}")));
-        }
-        resp.json()
-            .await
-            .map_err(|e| ApiError::Kms(format!("createKey json: {e}")))
     }
 
     pub async fn sign_transaction(
@@ -65,44 +41,30 @@ impl KmsClient {
             .await
             .map_err(|e| ApiError::Kms(format!("signTransaction json: {e}")))
     }
-
-    pub async fn list_keys(&self) -> Result<Value, ApiError> {
-        let url = format!("{}/listKeys", self.base);
-        let resp = self
-            .http
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| ApiError::Kms(e.to_string()))?;
-        if !resp.status().is_success() {
-            let body = resp.text().await.unwrap_or_default();
-            return Err(ApiError::Kms(format!("listKeys failed: {body}")));
-        }
-        resp.json()
-            .await
-            .map_err(|e| ApiError::Kms(format!("listKeys json: {e}")))
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wiremock::matchers::{method, path};
+    use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
-    async fn create_key_parses_response() {
+    async fn sign_transaction_parses_response() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/createKey"))
+            .and(path("/signTransaction"))
+            .and(query_param("keys", "0202aabb"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "public_key": "0202aabb",
-                "address": "account-hash-dead"
+                "transaction": {"signed": true}
             })))
             .mount(&server)
             .await;
         let client = KmsClient::new(server.uri());
-        let key = client.create_key().await.unwrap();
-        assert_eq!(key.public_key, "0202aabb");
+        let signed = client
+            .sign_transaction("0202aabb", &serde_json::json!({"tx": 1}))
+            .await
+            .unwrap();
+        assert_eq!(signed["transaction"]["signed"], true);
     }
 }

@@ -131,7 +131,7 @@ pub async fn finalize_call(
     Ok(PipelineOutcome::from_call(result, envelope.submit))
 }
 
-/// Resolve local PEM helper for custody / tests.
+/// Resolve local PEM helper for tests / local sign backend.
 #[allow(dead_code)]
 #[must_use]
 pub fn keyring_len(ring: &LocalKeyring) -> usize {
