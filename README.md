@@ -47,7 +47,7 @@ make verify-slices   # same feature slices as CI
 | `CEPS_SSE_URL` | `http://127.0.0.1:18101/events` |
 | `CEPS_CHAIN_NAME` | `casper-net-1` |
 | `SIGN_BACKEND` | unset, empty, or `none` → no put signer; `local` or `kms` |
-| `LOCAL_KEYS_JSON` | Static local keyring when `SIGN_BACKEND=local` (e.g. NCTL user PEMs) |
+| `LOCAL_KEYS_JSON` | **Env var** whose value is a JSON object (not a filesystem path). Map `public_key` → PEM string, or `{ "keys": [ { "public_key", "secret_key_pem" } ] }`. Typical lab use: paste NCTL user/faucet PEM text into that JSON in `.env`. |
 | `KMS_URL` | KMS peer when `SIGN_BACKEND=kms` |
 | `CEPS_WASM_ROOT` | Directory of contract `.wasm` files |
 | `RUST_LOG` | tracing filter |
@@ -64,9 +64,9 @@ Package **default** is a full build. Slim builds use `--no-default-features` plu
 | `all` | Alias for the package default |
 | `swagger-ui` | `/docs` |
 | `tx-return` | Allow `submit=return` (Transaction JSON without put) |
-| `sign-local` | Static in-process keyring from `LOCAL_KEYS_JSON` |
+| `sign-local` | Load static keyring from env `LOCAL_KEYS_JSON` (JSON blob with PEM strings; not a key directory) |
 | `sign-kms` | Internal KMS sign client for `SIGN_BACKEND=kms` |
-| `chain-put` | `POST /v1/chain/put-transaction` |
+| `chain-put` | `POST /v1/chain/put-transaction` (put an already-signed Transaction JSON) |
 
 There is no HTTP key create, key list, or fund route on this API.
 
@@ -96,10 +96,18 @@ Put signing is optional. Pick a backend with `SIGN_BACKEND` (unset / empty / `no
 | Mode | How |
 | --- | --- |
 | none | Queries and `submit=return` (with `tx-return`) work; `submit=put` → `no_signer` |
-| local | Static PEMs from `LOCAL_KEYS_JSON` (typically NCTL faucet / users). No HTTP key create. |
+| local | Env `LOCAL_KEYS_JSON` holds PEM strings for known public keys (e.g. NCTL users). Loaded once at process start. No HTTP key create. |
 | kms | Keys stay in KMS (`KMS_URL`). Create keys on the KMS API. This process never holds PEM. |
 
-External sign path: `submit=return` → sign elsewhere → `POST /v1/chain/put-transaction` (`chain-put`).
+#### `chain-put` (external sign)
+
+Use when this process does **not** sign:
+
+1. CEP mutate with `submit=return` → unsigned/made Transaction JSON.
+2. Sign elsewhere (wallet, KMS HTTP, another service).
+3. `POST /v1/chain/put-transaction` with that signed JSON.
+
+That is the only product use case. It is a thin put of already-signed JSON (same SDK `put_transaction` the CEP put path already uses). It is not a second CEP stack. A Rust helper on `ceps-client` / `CepCore` for “put this signed JSON” is a good shared place; this HTTP route is for HTTP clients on that external-sign flow. If you never expose external-sign over HTTP, you can build without `chain-put`.
 
 ### Funding (not an HTTP product feature)
 
@@ -107,9 +115,9 @@ This API does **not** expose fund. Who moves CSPR:
 
 | Context | How |
 | --- | --- |
-| **Local / NCTL lab** | Use already-funded NCTL users in `LOCAL_KEYS_JSON`. Or transfer with NCTL / `casper-client` outside this API. |
-| **Tests** | Harness under `crates/ceps-api/tests/integration/` may load a faucet PEM and call SDK transfer (and optionally KMS `createKey` directly). Never product routes. |
-| **Production** | Accounts are funded out of band (treasury, exchange, ops). Day-to-day: create keys on KMS if needed, set `SIGN_BACKEND=kms`, call CEP routes with `signer.public_key`. |
+| **Local / NCTL lab** | Use already-funded NCTL users whose PEMs you put into env `LOCAL_KEYS_JSON`. Or transfer with NCTL / `casper-client` outside this API. |
+| **Tests (harness)** | Order is: (1) optional `POST {KMS}/createKey` **directly on KMS** → new public key; (2) fund **from** the faucet PEM (usually NCTL faucet / user-1, via `CEPS_FAUCET_PEM` / `_PATH`) with an SDK native transfer in `tests/integration/harness.rs`; (3) then exercise CEP HTTP. No product fund route. |
+| **Production** | Accounts are funded out of band. Day-to-day: keys on KMS, `SIGN_BACKEND=kms`, CEP routes with `signer.public_key`. |
 
 ## Docker
 

@@ -1,7 +1,7 @@
-//! Live bootstrap against a reachable node when faucet PEM is provided via env.
+//! Live bootstrap: faucet PEM funds a target (tests only).
 //!
-//! Funding is harness-only (SDK transfer), not an HTTP product route.
-//! Key create (when needed) calls KMS directly.
+//! Order: resolve target (`CEPS_FUND_TARGET` or KMS createKey directly) → SDK transfer
+//! FROM faucet PEM (typically NCTL faucet) → optional balance query on the API.
 
 #![cfg(all(feature = "sign-local", feature = "tx-return"))]
 

@@ -1,8 +1,10 @@
 //! CI / local integration helpers.
 //!
-//! Bootstrap CSPR only: load a faucet PEM from env and optionally transfer via SDK.
-//! Product HTTP routes never expose fund or key create. Allowed **only** under harness.
-//! Product code under `crates/` must not import this module.
+//! Bootstrap CSPR only (tests).
+//!
+//! Typical order: create a recipient public key on KMS (direct HTTP), then fund it
+//! FROM the faucet PEM (usually NCTL faucet / user-1) via SDK transfer.
+//! Product HTTP routes never expose fund or key create.
 
 use casper_rust_wasm_sdk::types::transaction_params::transaction_str_params::TransactionStrParams;
 use ceps_api::config::{Config, SignBackend};
