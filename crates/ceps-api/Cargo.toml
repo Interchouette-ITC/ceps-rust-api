@@ -70,5 +70,3 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "tim
 wiremock = "0.6"
 reqwest = { workspace = true }
 serde_json = { workspace = true }
-ceps-client = { workspace = true }
-casper-rust-wasm-sdk = { workspace = true }

@@ -111,13 +111,13 @@ That is the only product use case. It is a thin put of already-signed JSON (same
 
 ### Funding (not an HTTP product feature)
 
-This API does **not** expose fund. Who moves CSPR:
+This API does **not** expose fund and does **not** define a faucet.
 
 | Context | How |
 | --- | --- |
-| **Local / NCTL lab** | Use already-funded NCTL users whose PEMs you put into env `LOCAL_KEYS_JSON`. Or transfer with NCTL / `casper-client` outside this API. |
-| **Tests (harness)** | Order is: (1) optional `POST {KMS}/createKey` **directly on KMS** → new public key; (2) fund **from** the faucet PEM (usually NCTL faucet / user-1, via `CEPS_FAUCET_PEM` / `_PATH`) with an SDK native transfer in `tests/integration/harness.rs`; (3) then exercise CEP HTTP. No product fund route. |
-| **Production** | Accounts are funded out of band. Day-to-day: keys on KMS, `SIGN_BACKEND=kms`, CEP routes with `signer.public_key`. |
+| **Local / NCTL lab** | NCTL already has a funded faucet plus users. Put those PEMs into env `LOCAL_KEYS_JSON` and use `SIGN_BACKEND=local`. No create/fund step in this API. |
+| **Tests** | Same: load funded NCTL keys via `LOCAL_KEYS_JSON`. Live tests skip if RPC is down or the keyring is empty. No `CEPS_FAUCET_*`, no transfer helper in this repo. |
+| **Production** | Fund accounts out of band. Day-to-day: keys on KMS, `SIGN_BACKEND=kms`, CEP routes with `signer.public_key`. |
 
 ## Docker
 
@@ -159,10 +159,7 @@ After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `insta
 ### Live harness (tests only)
 
 ```bash
-export CEPS_FAUCET_PEM_PATH=/path/to/faucet/private.pem
-# Fund an existing NCTL user, or create via KMS then fund in harness:
-# export CEPS_FUND_TARGET=01…
-# export KMS_URL=http://127.0.0.1:4000
+# Put funded NCTL faucet/user PEMs into LOCAL_KEYS_JSON, then:
 cargo test -p ceps-api --test live_bootstrap -- --nocapture
 ```
 
