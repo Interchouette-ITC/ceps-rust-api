@@ -172,7 +172,7 @@ After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `insta
 Ops scripts prepare env; assertions are Rust tests (not bash e2e).
 
 ```bash
-# Local: export funded NCTL faucet into LOCAL_KEYS_JSON, then:
+# Local: export funded NCTL faucet + users into LOCAL_KEYS_JSON, then:
 export LOCAL_KEYS_JSON="$(NCTL_CONTAINER=casper-nctl-2-docker-dev scripts/export-nctl-local-keys.sh)"
 SIGN_BACKEND=local cargo test -p ceps-rust-api --test live_local -- --nocapture
 
