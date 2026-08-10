@@ -8,6 +8,7 @@ use actix_web::{get, post, web, HttpResponse};
 use ceps_client::cep95::InstallArgs;
 use ceps_client::Cep95Client;
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 fn client(state: &AppState) -> Result<Cep95Client, ApiError> {
     Cep95Client::new(
@@ -29,7 +30,7 @@ macro_rules! mutate {
     }};
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct ContractRef {
     pub contract_hash: String,
     pub package_hash: Option<String>,
@@ -45,7 +46,7 @@ fn bound(state: &AppState, contract: &ContractRef) -> Result<Cep95Client, ApiErr
     Ok(c)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct InstallBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -55,6 +56,13 @@ pub struct InstallBody {
     pub package_hash_key_name: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep95/install",
+    request_body = InstallBody,
+    responses((status = 200, description = "Install pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-95"
+)]
 #[post("/v1/cep95/install")]
 pub async fn cep95_install(
     state: web::Data<AppState>,
@@ -66,7 +74,7 @@ pub async fn cep95_install(
     mutate!(state, body.envelope, |tx| client.install(&args, &wasm, tx))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct TransferBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -77,6 +85,13 @@ pub struct TransferBody {
     pub token_id: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep95/transfer-from",
+    request_body = TransferBody,
+    responses((status = 200, description = "Transfer pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-95"
+)]
 #[post("/v1/cep95/transfer-from")]
 pub async fn cep95_transfer_from(
     state: web::Data<AppState>,
@@ -257,6 +272,16 @@ pub async fn cep95_total_supply(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep95/{contract_hash}/owner-of/{token_id}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("token_id" = String, Path, description = "Token id")
+    ),
+    responses((status = 200, description = "Owner key")),
+    tag = "CEP-95"
+)]
 #[get("/v1/cep95/{contract_hash}/owner-of/{token_id}")]
 pub async fn cep95_owner_of(
     state: web::Data<AppState>,
@@ -322,7 +347,7 @@ pub async fn cep95_token_metadata(
     })))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct BindOdraInstallBody {
     pub installer_public_key: String,
     pub package_hash_key_name: String,
@@ -330,6 +355,13 @@ pub struct BindOdraInstallBody {
     pub label: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep95/bind-odra-install",
+    request_body = BindOdraInstallBody,
+    responses((status = 200, description = "Resolved contract and package hashes")),
+    tag = "CEP-95"
+)]
 #[post("/v1/cep95/bind-odra-install")]
 pub async fn cep95_bind_odra_install(
     state: web::Data<AppState>,

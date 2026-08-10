@@ -10,6 +10,7 @@ use ceps_client::cep78::{
 };
 use ceps_client::{Cep78Client, EventsMode78};
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 fn client(state: &AppState) -> Result<Cep78Client, ApiError> {
     Cep78Client::new(
@@ -45,7 +46,7 @@ fn token_from(id: Option<&str>, hash: Option<&str>) -> Result<TokenIdentifier, A
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct ContractRef {
     pub contract_hash: String,
     pub package_hash: Option<String>,
@@ -61,7 +62,7 @@ fn bound(state: &AppState, contract: &ContractRef) -> Result<Cep78Client, ApiErr
     Ok(c)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct InstallBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -77,6 +78,13 @@ fn default_ownership() -> u8 {
     2
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep78/install",
+    request_body = InstallBody,
+    responses((status = 200, description = "Install pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-78"
+)]
 #[post("/v1/cep78/install")]
 pub async fn cep78_install(
     state: web::Data<AppState>,
@@ -132,7 +140,7 @@ fn events_mode78_from_u8(v: u8) -> Result<EventsMode78, ApiError> {
     EventsMode78::from_u8(v).ok_or_else(|| ApiError::BadRequest(format!("invalid events_mode {v}")))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct MintBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -143,6 +151,13 @@ pub struct MintBody {
     pub token_hash: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep78/mint",
+    request_body = MintBody,
+    responses((status = 200, description = "Mint pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-78"
+)]
 #[post("/v1/cep78/mint")]
 pub async fn cep78_mint(
     state: web::Data<AppState>,
@@ -158,7 +173,7 @@ pub async fn cep78_mint(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct TransferBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -479,6 +494,16 @@ pub async fn cep78_events_mode(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep78/{contract_hash}/owner-of/{token}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("token" = String, Path, description = "Token id or hash")
+    ),
+    responses((status = 200, description = "Owner key")),
+    tag = "CEP-78"
+)]
 #[get("/v1/cep78/{contract_hash}/owner-of/{token}")]
 pub async fn cep78_owner_of(
     state: web::Data<AppState>,

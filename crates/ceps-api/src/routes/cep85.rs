@@ -8,6 +8,7 @@ use actix_web::{get, post, web, HttpResponse};
 use ceps_client::cep85::{ChangeSecurityArgs, InstallArgs, UpgradeArgs};
 use ceps_client::{Cep85Client, EventsMode};
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 fn client(state: &AppState) -> Result<Cep85Client, ApiError> {
     Cep85Client::new(
@@ -29,7 +30,7 @@ macro_rules! mutate {
     }};
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct ContractRef {
     pub contract_hash: String,
     pub package_hash: Option<String>,
@@ -45,7 +46,7 @@ fn bound(state: &AppState, contract: &ContractRef) -> Result<Cep85Client, ApiErr
     Ok(c)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct InstallBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -54,6 +55,13 @@ pub struct InstallBody {
     pub uri: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/install",
+    request_body = InstallBody,
+    responses((status = 200, description = "Install pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/install")]
 pub async fn cep85_install(
     state: web::Data<AppState>,
@@ -84,7 +92,7 @@ pub async fn cep85_upgrade(
     mutate!(state, body.envelope, |tx| client.upgrade(&args, &wasm, tx))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct MintBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -95,6 +103,13 @@ pub struct MintBody {
     pub amount: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/mint",
+    request_body = MintBody,
+    responses((status = 200, description = "Mint pipeline outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/mint")]
 pub async fn cep85_mint(
     state: web::Data<AppState>,
@@ -140,7 +155,7 @@ pub async fn cep85_batch_mint(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct TransferBody {
     #[serde(flatten)]
     pub envelope: MutateEnvelope,
@@ -427,6 +442,17 @@ pub async fn cep85_collection_uri(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/balance-of/{owner}/{id}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("owner" = String, Path, description = "Owner key"),
+        ("id" = String, Path, description = "Token id")
+    ),
+    responses((status = 200, description = "Balance string")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/balance-of/{owner}/{id}")]
 pub async fn cep85_balance_of(
     state: web::Data<AppState>,
