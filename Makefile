@@ -10,6 +10,7 @@ COMPOSE ?= docker/docker-compose.yml
 
 FEATURES ?= ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
 CARGO_FEATURES := --features $(FEATURES)
+RUST_LOG ?= info
 
 CARGO := env -u CARGO_TARGET_DIR -u PLAYWRIGHT_BROWSERS_PATH cargo
 
@@ -67,7 +68,7 @@ pem-ban:
 	@echo "pem-ban: ok"
 
 run:
-	$(CARGO) run -p ceps-rust-api $(CARGO_FEATURES)
+	RUST_LOG=$(RUST_LOG) $(CARGO) run -p ceps-rust-api $(CARGO_FEATURES)
 
 docker-build:
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -f $(DOCKERFILE) \

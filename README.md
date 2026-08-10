@@ -10,8 +10,12 @@ It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rus
 cp .env.example .env
 make build
 make verify
+# Lab: leave SIGN_BACKEND unset (make-only / queries) or set local + LOCAL_KEYS_JSON from NCTL users.
+# Production-shaped: SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000
 make run
 ```
+
+`make run` defaults `RUST_LOG=info` so you see listen / version / docs lines on stdout.
 
 | URL                                            | Purpose                                          |
 | ---------------------------------------------- | ------------------------------------------------ |

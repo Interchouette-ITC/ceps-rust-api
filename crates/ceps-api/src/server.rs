@@ -179,13 +179,23 @@ pub fn create_app(
 pub async fn run_server(config: Config) -> std::io::Result<()> {
     let bind = config.bind_addr();
     let state = AppState::new(config);
-    info!(%bind, "ceps-rust-api listening");
+    info!(
+        version = crate::VERSION,
+        %bind,
+        rpc = %state.config.rpc_url,
+        chain = %state.config.chain_name,
+        "listening"
+    );
+    info!(ceps = ?state.config.enabled_ceps(), "compiled CEP features");
+    // Custody mode stays in process logs only (never on GET /).
     info!(
         sign_backend = %state.config.sign_backend.as_str(),
-        kms_url_configured = state.config.kms_url_configured(),
-        "sign config"
+        kms_url_set = state.config.kms_url_configured(),
+        "signing"
     );
-    info!(ceps = ?state.config.enabled_ceps(), "enabled CEP features");
+    if cfg!(feature = "swagger-ui") {
+        info!(docs = %format!("http://{bind}/docs/"), "openapi");
+    }
 
     HttpServer::new(move || create_app(state.clone()))
         .bind(&bind)?
