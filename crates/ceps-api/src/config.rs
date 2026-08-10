@@ -207,7 +207,17 @@ fn load_local_keys(backend: SignBackend) -> Result<LocalKeyring, String> {
 }
 
 fn default_wasm_root() -> PathBuf {
-    PathBuf::from("../ceps-rust-ts-client/tests/wasm")
+    // Integration tests run with cwd = crate dir; binary may run from repo root.
+    let from_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../ceps-rust-ts-client/tests/wasm");
+    if from_manifest.is_dir() {
+        return from_manifest;
+    }
+    let from_cwd = PathBuf::from("../ceps-rust-ts-client/tests/wasm");
+    if from_cwd.is_dir() {
+        return from_cwd;
+    }
+    from_manifest
 }
 
 #[must_use]
