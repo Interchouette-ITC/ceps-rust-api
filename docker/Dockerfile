@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libssl-dev \
   ca-certificates \
   build-essential \
+  curl \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

@@ -96,12 +96,14 @@ async fn cep18_make_only_uses_distinct_user_signers() {
                 .to_request(),
         )
         .await;
+        let status = resp.status();
+        let body_bytes = test::read_body(resp).await;
         assert!(
-            resp.status().is_success(),
-            "make-only with user key {i} failed: {}",
-            resp.status()
+            status.is_success(),
+            "make-only with user key {i} failed: {status} {}",
+            String::from_utf8_lossy(&body_bytes)
         );
-        let body: serde_json::Value = test::read_body_json(resp).await;
+        let body: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
         assert!(
             body.get("transaction").is_some(),
             "missing transaction for {pk}"
@@ -146,12 +148,14 @@ async fn cep18_put_install_mint_transfer_across_users() {
             .to_request(),
     )
     .await;
+    let install_status = install.status();
+    let install_bytes = test::read_body(install).await;
     assert!(
-        install.status().is_success(),
-        "put install failed: {}",
-        install.status()
+        install_status.is_success(),
+        "put install failed: {install_status} {}",
+        String::from_utf8_lossy(&install_bytes)
     );
-    let install_body: serde_json::Value = test::read_body_json(install).await;
+    let install_body: serde_json::Value = serde_json::from_slice(&install_bytes).unwrap();
     assert!(
         !install_body["transaction_hash"]
             .as_str()
