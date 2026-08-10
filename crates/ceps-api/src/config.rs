@@ -207,17 +207,12 @@ fn load_local_keys(backend: SignBackend) -> Result<LocalKeyring, String> {
 }
 
 fn default_wasm_root() -> PathBuf {
-    // Integration tests run with cwd = crate dir; binary may run from repo root.
-    let from_manifest =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../ceps-rust-ts-client/tests/wasm");
-    if from_manifest.is_dir() {
-        return from_manifest;
+    // Fetched tip contracts live in this repo (`make fetch-wasm` → tests/wasm/).
+    let from_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/wasm");
+    if from_crate.is_dir() {
+        return from_crate;
     }
-    let from_cwd = PathBuf::from("../ceps-rust-ts-client/tests/wasm");
-    if from_cwd.is_dir() {
-        return from_cwd;
-    }
-    from_manifest
+    PathBuf::from("tests/wasm")
 }
 
 #[must_use]

@@ -20,14 +20,16 @@ CLIPPY_FLAGS := -D warnings -D clippy::all
 
 .PHONY: help build build-release check test verify verify-slices lint format format-check clippy \
 	docker-build docker-run docker-run-kms docker-stop version-show run pem-ban \
-	export-local-keys run-local
+	export-local-keys run-local fetch-wasm
 
 NCTL_CONTAINER ?= casper-nctl-2-docker-dev
 NCTL_USERS ?= 1 2 3
+CEPS_CONTRACTS_TAG ?= dev-preview
 
 help:
 	@echo "ceps-rust-api targets"
 	@echo "  make build / test / verify / verify-slices / run"
+	@echo "  make fetch-wasm          # download tip CEP contracts into tests/wasm/"
 	@echo "  make export-local-keys   # print LOCAL_KEYS_JSON (NCTL users; lab only)"
 	@echo "  make run-local           # run with SIGN_BACKEND=local + exported keys"
 	@echo "  Features: FEATURES=$(FEATURES)"
@@ -75,6 +77,11 @@ pem-ban:
 
 run:
 	RUST_LOG=$(RUST_LOG) $(CARGO) run -p ceps-rust-api $(CARGO_FEATURES)
+
+# Demo tip CEP contracts (https://github.com/Interchouette-ITC/ceps-rust-ts-client releases).
+fetch-wasm:
+	@chmod +x scripts/fetch-ceps-contracts.sh
+	@CEPS_CONTRACTS_TAG=$(CEPS_CONTRACTS_TAG) ./scripts/fetch-ceps-contracts.sh
 
 # Lab only: dump NCTL user PEMs as LOCAL_KEYS_JSON (stdout). Never faucet.
 export-local-keys:

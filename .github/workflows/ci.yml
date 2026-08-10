@@ -150,10 +150,14 @@ jobs:
             sleep 5
           done
           echo "rpc timeout"; exit 1
+      - name: Fetch CEP contract WASMs
+        run: |
+          chmod +x scripts/fetch-ceps-contracts.sh
+          CEPS_CONTRACTS_TAG=dev-preview ./scripts/fetch-ceps-contracts.sh
+          test -f tests/wasm/cep18/cep18.wasm
       - name: Export LOCAL_KEYS_JSON (ops)
         run: |
           chmod +x scripts/export-nctl-local-keys.sh scripts/fund-kms-from-nctl.sh
-          test -f "${GITHUB_WORKSPACE}/ceps-rust-ts-client/tests/wasm/cep18/cep18.wasm"
           {
             echo "LOCAL_KEYS_JSON<<EOF"
             NCTL_CONTAINER=casper-nctl-2-docker-ci NCTL_USERS="1 2 3" ./scripts/export-nctl-local-keys.sh
@@ -162,7 +166,7 @@ jobs:
             echo "CEPS_RPC_URL=http://127.0.0.1:11101"
             echo "CEPS_SSE_URL=http://127.0.0.1:18101/events"
             echo "CEPS_CHAIN_NAME=casper-net-1"
-            echo "CEPS_WASM_ROOT=${GITHUB_WORKSPACE}/ceps-rust-ts-client/tests/wasm"
+            echo "CEPS_WASM_ROOT=${GITHUB_WORKSPACE}/ceps-rust-api/tests/wasm"
           } >> "$GITHUB_ENV"
       - name: Live local (Rust)
         run: env -u CARGO_TARGET_DIR cargo test -p ceps-rust-api --features ${{ env.FEATURES }} --test live_local -- --nocapture
