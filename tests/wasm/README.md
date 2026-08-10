@@ -1,12 +1,12 @@
 # Demo tip CEP contract WASMs
 
-Same role as [`ceps-rust-ts-client/tests/wasm`](https://github.com/Interchouette-ITC/ceps-rust-ts-client/tree/dev/tests/wasm): on-chain contract bytecode for install/live tests.
+On-chain contract bytecode for install and live tests. Same layout as the client
+`tests/wasm/` tree: committed in git, default `CEPS_WASM_ROOT`.
 
-Committed in-tree for CI and local runs. Refresh from the client tip release pack:
+| Dir | Contents |
+| --- | --- |
+| `cep18/` | CEP-18 fungible |
+| `cep78/` | CEP-78 NFT + session helpers |
+| `cep85/` | CEP-85 multi-token |
 
-```bash
-make fetch-wasm
-# or: CEPS_CONTRACTS_TAG=dev-preview ./scripts/fetch-ceps-contracts.sh
-```
-
-Default `CEPS_WASM_ROOT` is this directory. Short names like `cep18` resolve to `cep18/cep18.wasm`.
+Short names like `cep18` resolve to `cep18/cep18.wasm`.

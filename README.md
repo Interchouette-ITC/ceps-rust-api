@@ -77,7 +77,7 @@ make verify-slices   # same feature slices as CI
 | `LOCAL_KEYS_JSON_PRODUCTION` | **Private network fallback** when not using KMS. Same JSON as lab: PEM text **or** path. Prefer secret mounts (path), not inline PEMs in env.        |
 | `KMS_URL`                    | KMS peer when `SIGN_BACKEND=kms`. Peer env/credentials: [kms docs](https://github.com/Interchouette-ITC/kms-secp256k1-api/blob/dev/docs/Tutorial.md) |
 | `DOTENV_DISABLE`             | Set to `1` / `true` / `yes` to skip loading `.env` (CI / containers) |
-| `CEPS_WASM_ROOT`             | Contract `.wasm` dir (default in-tree `tests/wasm/`; refresh with `make fetch-wasm`) |
+| `CEPS_WASM_ROOT`             | Contract `.wasm` dir (default in-tree `tests/wasm/`) |
 | `RUST_LOG`                   | tracing filter (default `info`; include `actix_web=info` for request access logs) |
 
 See [`.env.example`](.env.example).
@@ -245,7 +245,6 @@ Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. 
 | `make verify-slices`                 | CI feature-slice builds                                            |
 | `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
 | `make docker-run` / `docker-run-kms` | Compose up                                                         |
-| `make fetch-wasm`                    | Refresh tip CEP contracts into committed `tests/wasm/`             |
 | `make export-local-keys`             | Print `LOCAL_KEYS_JSON` (NCTL users 1 2 3 by default)              |
 | `make run-local`                     | Lab run with `SIGN_BACKEND=local` + exported keys                  |
 | `scripts/export-nctl-local-keys.sh`  | Same export (ops script)                                           |
