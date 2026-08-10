@@ -50,9 +50,6 @@ pub fn create_app(
 
     app = svc!(
         app,
-        crate::routes::chain::chain_balance,
-        crate::routes::chain::chain_account,
-        crate::routes::chain::chain_transaction,
         crate::routes::instances::list_instances,
         crate::routes::instances::register_instance,
         crate::routes::instances::get_instance,

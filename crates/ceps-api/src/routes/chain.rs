@@ -1,114 +1,24 @@
-//! Chain query and put-transaction routes.
+//! Chain put-transaction route (feature `chain-put`).
+//!
+//! Account/balance/transaction *queries* are not part of this CEP API.
+//! Use the node RPC or CEP wait/`CallResult` for transaction outcome.
 
+#[cfg(feature = "chain-put")]
 use crate::error::ApiError;
+#[cfg(feature = "chain-put")]
 use crate::routes::common::cep_core;
+#[cfg(feature = "chain-put")]
 use crate::state::AppState;
 #[cfg(feature = "chain-put")]
 use crate::tx::PipelineOutcome;
 #[cfg(feature = "chain-put")]
-use actix_web::post;
-use actix_web::{get, web, HttpResponse};
+use actix_web::{post, web, HttpResponse};
 #[cfg(feature = "chain-put")]
 use serde::Deserialize;
-use serde::Serialize;
+#[cfg(feature = "chain-put")]
 use serde_json::Value;
+#[cfg(feature = "chain-put")]
 use utoipa::ToSchema;
-
-#[derive(Serialize, ToSchema)]
-pub struct BalanceResult {
-    pub raw: Value,
-}
-
-#[utoipa::path(
-    get,
-    path = "/v1/chain/balance/{public_key}",
-    params(("public_key" = String, Path, description = "Account public key hex")),
-    responses((status = 200, description = "Account JSON (includes main purse)", body = BalanceResult)),
-    tag = "Chain"
-)]
-#[get("/v1/chain/balance/{public_key}")]
-pub async fn chain_balance(
-    state: web::Data<AppState>,
-    path: web::Path<String>,
-) -> Result<HttpResponse, ApiError> {
-    let core = cep_core(&state)?;
-    let account = {
-        #[allow(deprecated)]
-        core.sdk()
-            .get_account(
-                None,
-                Some(path.into_inner()),
-                None,
-                Some(core.verbosity()),
-                Some(core.rpc_url().to_string()),
-            )
-            .await
-            .map_err(|e| ApiError::Chain(e.to_string()))?
-    };
-    let raw =
-        serde_json::to_value(&account.result).map_err(|e| ApiError::Internal(e.to_string()))?;
-    Ok(HttpResponse::Ok().json(raw))
-}
-
-#[utoipa::path(
-    get,
-    path = "/v1/chain/account/{public_key}",
-    params(("public_key" = String, Path, description = "Account public key hex")),
-    responses((status = 200, description = "Account JSON")),
-    tag = "Chain"
-)]
-#[get("/v1/chain/account/{public_key}")]
-pub async fn chain_account(
-    state: web::Data<AppState>,
-    path: web::Path<String>,
-) -> Result<HttpResponse, ApiError> {
-    let core = cep_core(&state)?;
-    let account = {
-        #[allow(deprecated)]
-        core.sdk()
-            .get_account(
-                None,
-                Some(path.into_inner()),
-                None,
-                Some(core.verbosity()),
-                Some(core.rpc_url().to_string()),
-            )
-            .await
-            .map_err(|e| ApiError::Chain(e.to_string()))?
-    };
-    let raw =
-        serde_json::to_value(&account.result).map_err(|e| ApiError::Internal(e.to_string()))?;
-    Ok(HttpResponse::Ok().json(raw))
-}
-
-#[utoipa::path(
-    get,
-    path = "/v1/chain/transaction/{hash}",
-    params(("hash" = String, Path, description = "Transaction hash hex")),
-    responses((status = 200, description = "Transaction JSON")),
-    tag = "Chain"
-)]
-#[get("/v1/chain/transaction/{hash}")]
-pub async fn chain_transaction(
-    state: web::Data<AppState>,
-    path: web::Path<String>,
-) -> Result<HttpResponse, ApiError> {
-    let core = cep_core(&state)?;
-    let tx_hash = casper_rust_wasm_sdk::types::hash::transaction_hash::TransactionHash::new(&path)
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
-    let tx = core
-        .sdk()
-        .get_transaction(
-            tx_hash,
-            Some(false),
-            Some(core.verbosity()),
-            Some(core.rpc_url().to_string()),
-        )
-        .await
-        .map_err(|e| ApiError::Chain(e.to_string()))?;
-    let raw = serde_json::to_value(&tx.result).map_err(|e| ApiError::Internal(e.to_string()))?;
-    Ok(HttpResponse::Ok().json(raw))
-}
 
 #[cfg(feature = "chain-put")]
 #[derive(Deserialize, ToSchema)]

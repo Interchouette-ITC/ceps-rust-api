@@ -10,9 +10,6 @@ use utoipa::OpenApi;
     paths(
         crate::routes::hello::hello_handler,
         crate::routes::health::health_handler,
-        crate::routes::chain::chain_balance,
-        crate::routes::chain::chain_account,
-        crate::routes::chain::chain_transaction,
         crate::routes::instances::list_instances,
         crate::routes::instances::register_instance,
         crate::routes::instances::get_instance,
@@ -30,11 +27,10 @@ use utoipa::OpenApi;
         crate::tx::SubmitMode,
         crate::tx::WaitMode,
         crate::tx::SignerRef,
-        crate::routes::chain::BalanceResult,
     )),
     tags(
         (name = "Health", description = "Liveness and hello"),
-        (name = "Chain", description = "Native CSPR and transaction queries"),
+        (name = "Chain", description = "Put already-signed Transaction JSON"),
         (name = "Instances", description = "CEP contract instance registry and wasm"),
         (name = "CEP-18", description = "Fungible token"),
         (name = "CEP-78", description = "NFT"),
@@ -43,7 +39,7 @@ use utoipa::OpenApi;
     ),
     info(
         title = "ceps-rust-api",
-        description = "Casper CEP HTTP API. Socle queries and CEP routes; optional local or KMS signing (no PEM in HTTP bodies). Uses Transactions only.",
+        description = "Casper CEP HTTP API. CEP routes and optional local or KMS put signing (no PEM in HTTP bodies). Uses Transactions only.",
         version = "0.1.0"
     )
 )]

@@ -165,40 +165,6 @@ async fn local_put_missing_key_is_no_signer() {
     assert_eq!(body["code"], "no_signer");
 }
 
-#[actix_web::test]
-async fn live_chain_account_when_rpc_up() {
-    let ok = reqwest::Client::new()
-        .post("http://127.0.0.1:11101/rpc")
-        .json(&serde_json::json!({
-            "id": 1,
-            "jsonrpc": "2.0",
-            "method": "info_get_status",
-            "params": []
-        }))
-        .send()
-        .await
-        .map(|r| r.status().is_success())
-        .unwrap_or(false);
-    if !ok {
-        eprintln!("skip live chain test: RPC unreachable");
-        return;
-    }
-    let app = test::init_service(create_app(app_none())).await;
-    // faucet-ish public key may or may not exist; just assert route answers 200 or 502
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::get()
-            .uri("/v1/chain/account/010101010101010101010101010101010101010101010101010101010101010101")
-            .to_request(),
-    )
-    .await;
-    assert!(
-        resp.status().is_success() || resp.status().as_u16() == 502,
-        "unexpected {}",
-        resp.status()
-    );
-}
-
 #[cfg(feature = "sign-kms")]
 #[actix_web::test]
 async fn kms_sign_client_via_wiremock() {
@@ -293,7 +259,13 @@ async fn openapi_lists_platform_and_cep18_when_enabled() {
     let body: serde_json::Value = test::read_body_json(resp).await;
     let paths = body["paths"].as_object().expect("paths");
     assert!(paths.contains_key("/v1/instances/{id}"));
-    assert!(paths.contains_key("/v1/chain/balance/{public_key}"));
+    #[cfg(feature = "chain-put")]
+    assert!(paths.contains_key("/v1/chain/put-transaction"));
+    #[cfg(not(feature = "chain-put"))]
+    assert!(!paths.contains_key("/v1/chain/put-transaction"));
+    assert!(!paths.contains_key("/v1/chain/balance/{public_key}"));
+    assert!(!paths.contains_key("/v1/chain/account/{public_key}"));
+    assert!(!paths.contains_key("/v1/chain/transaction/{hash}"));
     #[cfg(feature = "cep18")]
     {
         assert!(paths.contains_key("/v1/cep18/install"));
@@ -318,8 +290,4 @@ async fn openapi_lists_platform_and_cep18_when_enabled() {
         assert!(paths.contains_key("/v1/cep95/transfer-from"));
         assert!(paths.contains_key("/v1/cep95/bind-odra-install"));
     }
-    #[cfg(feature = "chain-put")]
-    assert!(paths.contains_key("/v1/chain/put-transaction"));
-    #[cfg(not(feature = "chain-put"))]
-    assert!(!paths.contains_key("/v1/chain/put-transaction"));
 }

@@ -2,7 +2,7 @@
 
 HTTP API for Casper **CEP-18**, **CEP-78**, **CEP-85**, and **CEP-95**, built with [Actix Web](https://actix.rs/) and [utoipa](https://github.com/juhaku/utoipa).
 
-It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) for CEP args, transaction make, and wait, and on [`casper-rust-wasm-sdk`](https://github.com/casper-ecosystem/casper-rust-wasm-sdk) for sign and put. Optional put signing uses a static local PEM keyring or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
+It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) for CEP args, transaction make, wait, and (soon) put of signed JSON. Optional put signing uses a lab local PEM keyring (`LOCAL_KEYS_JSON`) or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
 
 ## Quick start
 
@@ -31,12 +31,11 @@ make verify-slices   # same feature slices as CI
 
 | Piece | Role |
 | --- | --- |
-| This API | CEP routes, OpenAPI, put pipeline |
-| `ceps-rust-ts-client` | CEP entrypoints, make → Transaction JSON, wait |
-| `casper-rust-wasm-sdk` | Sign helpers, put transaction |
-| `kms-secp256k1-api` | Optional HTTP signer (create/list keys on KMS itself) |
+| This API | CEP HTTP routes, OpenAPI, put pipeline |
+| `ceps-rust-ts-client` | CEP entrypoints, make → JSON, wait, put helpers |
+| `kms-secp256k1-api` | Optional HTTP signer (create/list on KMS itself) |
 
-**Separation:** KMS owns secrets, key create/list, and signatures. This API owns CEP recipes and chain puts/queries. Call KMS directly to create keys; this API only calls KMS `signTransaction` when `SIGN_BACKEND=kms`.
+**Separation:** KMS owns secrets, key create/list, and signatures. This API owns CEP recipes and put pipeline. Call KMS directly to create keys; this API only calls KMS `signTransaction` when `SIGN_BACKEND=kms`. No account/balance/transaction query routes (use node RPC or CEP `wait` / `CallResult`).
 
 ## Configuration
 
@@ -47,7 +46,7 @@ make verify-slices   # same feature slices as CI
 | `CEPS_SSE_URL` | `http://127.0.0.1:18101/events` |
 | `CEPS_CHAIN_NAME` | `casper-net-1` |
 | `SIGN_BACKEND` | unset, empty, or `none` → no put signer; `local` or `kms` |
-| `LOCAL_KEYS_JSON` | **Env var** whose value is a JSON object (not a filesystem path). Map `public_key` → PEM string, or `{ "keys": [ { "public_key", "secret_key_pem" } ] }`. Typical lab use: paste NCTL user/faucet PEM text into that JSON in `.env`. |
+| `LOCAL_KEYS_JSON` | **Lab / NCTL / tests only.** Env JSON blob (not a file path): `public_key` → PEM. Load NCTL faucet/user PEMs for `SIGN_BACKEND=local`. Not a production key store. |
 | `KMS_URL` | KMS peer when `SIGN_BACKEND=kms` |
 | `CEPS_WASM_ROOT` | Directory of contract `.wasm` files |
 | `RUST_LOG` | tracing filter |
@@ -64,9 +63,9 @@ Package **default** is a full build. Slim builds use `--no-default-features` plu
 | `all` | Alias for the package default |
 | `swagger-ui` | `/docs` |
 | `tx-return` | Allow `submit=return` (Transaction JSON without put) |
-| `sign-local` | Load static keyring from env `LOCAL_KEYS_JSON` (JSON blob with PEM strings; not a key directory) |
-| `sign-kms` | Internal KMS sign client for `SIGN_BACKEND=kms` |
-| `chain-put` | `POST /v1/chain/put-transaction` (put an already-signed Transaction JSON) |
+| `sign-local` | Lab keyring from `LOCAL_KEYS_JSON` (NCTL PEMs). Not for production custody. |
+| `sign-kms` | Internal KMS `signTransaction` client for puts |
+| `chain-put` | `POST /v1/chain/put-transaction` (already-signed Transaction JSON) |
 
 There is no HTTP key create, key list, or fund route on this API.
 
@@ -76,7 +75,7 @@ Hello `/` reports compiled features, `sign_backend`, and whether `KMS_URL` is se
 
 ## HTTP surface
 
-Platform routes: health, hello, instances registry, wasm list, chain balance / account / transaction queries.
+Platform: health, hello, instances registry, wasm list. Optional: `POST /v1/chain/put-transaction` (`chain-put`).
 
 CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` \| `processed`), `signer.public_key`, `payment_amount`.
 
@@ -91,33 +90,37 @@ OpenAPI lists the paths compiled into this binary. Full route lists are easiest 
 
 ### Signing
 
-Put signing is optional. Pick a backend with `SIGN_BACKEND` (unset / empty / `none` = no put signer).
-
 | Mode | How |
 | --- | --- |
-| none | Queries and `submit=return` (with `tx-return`) work; `submit=put` → `no_signer` |
-| local | Env `LOCAL_KEYS_JSON` holds PEM strings for known public keys (e.g. NCTL users). Loaded once at process start. No HTTP key create. |
-| kms | Keys stay in KMS (`KMS_URL`). Create keys on the KMS API. This process never holds PEM. |
+| none | `submit=return` (with `tx-return`) works; `submit=put` → `no_signer` |
+| local | NCTL lab: PEMs in `LOCAL_KEYS_JSON`. Already funded on NCTL. No create/fund in this API. |
+| kms | Production-shaped: keys in KMS. Create on KMS; fund **before** use (see below). API only signs puts. |
+
+#### How KMS mode is tested
+
+| Layer | What |
+| --- | --- |
+| **Unit / CI** | Wiremock of KMS `signTransaction` (proves the HTTP sign client). Does **not** create or fund keys. |
+| **Live KMS put** | **Before** tests: (1) create key(s) on KMS HTTP; (2) fund those public keys from an NCTL faucet/user (script / casper-client / future `CepCore::native_transfer`); (3) run API with `SIGN_BACKEND=kms` and CEP `signer.public_key` = those keys. If KMS was restarted empty, recreate and refund. |
+| **Local put** | `LOCAL_KEYS_JSON` = NCTL PEMs. No funding step. |
+
+`CEPS_FAUCET_PEM` (if used) belongs only in that **pre-test KMS funding script**, not in product code and not for “funding NCTL users.”
 
 #### `chain-put` (external sign)
 
-Use when this process does **not** sign:
+1. CEP `submit=return` → Transaction JSON  
+2. Sign elsewhere  
+3. `POST /v1/chain/put-transaction`  
 
-1. CEP mutate with `submit=return` → unsigned/made Transaction JSON.
-2. Sign elsewhere (wallet, KMS HTTP, another service).
-3. `POST /v1/chain/put-transaction` with that signed JSON.
+Shared Rust helper (planned): `CepCore::put_signed_json` in ceps-client.
 
-That is the only product use case. It is a thin put of already-signed JSON (same SDK `put_transaction` the CEP put path already uses). It is not a second CEP stack. A Rust helper on `ceps-client` / `CepCore` for “put this signed JSON” is a good shared place; this HTTP route is for HTTP clients on that external-sign flow. If you never expose external-sign over HTTP, you can build without `chain-put`.
+### Keys and funding (not product HTTP)
 
-### Funding (not an HTTP product feature)
-
-This API does **not** expose fund and does **not** define a faucet.
-
-| Context | How |
-| --- | --- |
-| **Local / NCTL lab** | NCTL already has a funded faucet plus users. Put those PEMs into env `LOCAL_KEYS_JSON` and use `SIGN_BACKEND=local`. No create/fund step in this API. |
-| **Tests** | Same: load funded NCTL keys via `LOCAL_KEYS_JSON`. Live tests skip if RPC is down or the keyring is empty. No `CEPS_FAUCET_*`, no transfer helper in this repo. |
-| **Production** | Fund accounts out of band. Day-to-day: keys on KMS, `SIGN_BACKEND=kms`, CEP routes with `signer.public_key`. |
+| Context | Keys | Funding |
+| --- | --- | --- |
+| NCTL lab / local tests | `LOCAL_KEYS_JSON` (NCTL faucet + users) | Already funded by NCTL |
+| KMS live / prod | Create on KMS API | Out of band / pre-test from NCTL faucet to KMS public key |
+| This API | Never create/list/fund over HTTP | Never |
 
 ## Docker
 
@@ -147,11 +150,11 @@ curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
 
 ### KMS put signing
 
-Create the key on KMS (its HTTP API). Fund that public key out of band. Then:
+Pre-test / ops (outside this API): create on KMS, fund the public key from NCTL faucet, then:
 
 ```bash
 SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000 make run
-# CEP submit=put with signer.public_key = the KMS public key
+# CEP submit=put with signer.public_key = the funded KMS public key
 ```
 
 After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `installer_public_key` and `package_hash_key_name` (optional `label` registers an instance).
