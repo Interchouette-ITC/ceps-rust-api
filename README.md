@@ -27,6 +27,7 @@ Runtime: `SIGN_BACKEND` unset/empty/`none` → put fails with `no_signer`; retur
 cp .env.example .env
 make build
 make verify
+make verify-slices   # same feature slices as CI
 make run
 # curl http://127.0.0.1:8080/
 # curl http://127.0.0.1:8080/docs/ceps-openapi.json
