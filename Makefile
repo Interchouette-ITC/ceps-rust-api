@@ -17,12 +17,12 @@ CLIPPY_FLAGS := -D warnings -D clippy::all
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build-release check test verify lint format format-check clippy \
+.PHONY: help build build-release check test verify verify-slices lint format format-check clippy \
 	docker-build docker-run docker-run-kms docker-stop version-show run pem-ban
 
 help:
 	@echo "ceps-rust-api targets"
-	@echo "  make build / test / verify / run"
+	@echo "  make build / test / verify / verify-slices / run"
 	@echo "  Features: FEATURES=$(FEATURES)"
 	@echo "  SIGN_BACKEND: leave unset for none"
 
@@ -51,6 +51,14 @@ test: lint
 
 verify: lint test
 
+# Same feature slices as CI (.github/workflows/ci.yml).
+verify-slices:
+	$(CARGO) test -p ceps-api --no-default-features --features cep18,tx-return,swagger-ui -- --nocapture
+	$(CARGO) test -p ceps-api --no-default-features --features cep78,tx-return,swagger-ui -- --nocapture
+	$(CARGO) check -p ceps-api --no-default-features --features cep85,cep95,swagger-ui
+	$(CARGO) test -p ceps-api --no-default-features --features cep18,swagger-ui -- --nocapture
+	$(CARGO) test -p ceps-api --no-default-features --features swagger-ui -- --nocapture
+
 pem-ban:
 	@if rg -n 'secret_key\.pem|PATH_PRIVATE_KEY_|PRIVATE_KEY_|FAUCET_MODE|BOOTSTRAP_KMS' \
 		crates docker README.md .env.example .github 2>/dev/null ; then \
@@ -62,7 +70,9 @@ run:
 	$(CARGO) run -p ceps-api $(CARGO_FEATURES)
 
 docker-build:
-	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -f $(DOCKERFILE) -t $(HUB_IMAGE):$(TAG) -t $(HUB_IMAGE):$(APP_VERSION) .
+	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -f $(DOCKERFILE) \
+		--build-arg FEATURES=$(FEATURES) \
+		-t $(HUB_IMAGE):$(TAG) -t $(HUB_IMAGE):$(APP_VERSION) .
 
 docker-run:
 	docker compose -f $(COMPOSE) up -d
