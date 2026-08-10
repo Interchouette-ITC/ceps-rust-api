@@ -2,7 +2,7 @@
 
 HTTP API for Casper **CEP-18**, **CEP-78**, **CEP-85**, and **CEP-95**, built with [Actix Web](https://actix.rs/) and [utoipa](https://github.com/juhaku/utoipa).
 
-It sits on [`ceps-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) for CEP args, transaction make, and wait, and on [`casper-rust-wasm-sdk`](https://github.com/casper-ecosystem/casper-rust-wasm-sdk) for sign and put. Optional signing uses a local PEM keyring or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
+It sits on [`ceps-rust-ts-client`](https://github.com/Interchouette-ITC/ceps-rust-ts-client) for CEP args, transaction make, and wait, and on [`casper-rust-wasm-sdk`](https://github.com/casper-ecosystem/casper-rust-wasm-sdk) for sign and put. Optional signing uses a local PEM keyring or the [kms-secp256k1-api](https://github.com/Interchouette-ITC/kms-secp256k1-api) HTTP peer. Request bodies never carry PEM material.
 
 Canonical repo: [Interchouette-ITC/ceps-rust-api](https://github.com/Interchouette-ITC/ceps-rust-api).
 
@@ -34,7 +34,7 @@ make verify-slices   # same feature slices as CI
 | Piece | Role |
 | --- | --- |
 | This API | Actix routes, OpenAPI, feature-gated add-ons |
-| `ceps-client` | CEP entrypoints, make → Transaction JSON, wait |
+| `ceps-rust-ts-client` | CEP entrypoints, make → Transaction JSON, wait |
 | `casper-rust-wasm-sdk` | Sign helpers, put transaction |
 | `kms-secp256k1-api` | Optional Docker HTTP signer (not a Rust path-dep) |
 
@@ -64,10 +64,12 @@ Package **default** is a full demo build. Slim builds use `--no-default-features
 | `all` | Alias for the package default (CEPs + add-ons below) |
 | `swagger-ui` | `/docs` |
 | `tx-return` | Allow `submit=return` (Transaction JSON without put) |
-| `sign-local` | `LOCAL_KEYS_JSON` keyring |
-| `sign-kms` | KMS HTTP client + `/v1/kms/*` |
+| `sign-local` | In-process keyring for `SIGN_BACKEND=local` (`LOCAL_KEYS_JSON` and/or keys from custody create) |
+| `sign-kms` | KMS HTTP client + `/v1/kms/*` (including `POST /v1/kms/create-key`) |
 | `chain-put` | `POST /v1/chain/put-transaction` |
-| `custody` | `POST /v1/keys/create`, `POST /v1/chain/fund` (implies `sign-local`) |
+| `custody` | Demo helpers: `POST /v1/keys/create` (local keyring only) and `POST /v1/chain/fund` (native CSPR transfer; put signs with local or KMS) |
+
+`custody` pulls in `sign-local` because `/v1/keys/create` writes the process keyring. KMS key creation is not under `custody`; it is `/v1/kms/create-key` (`sign-kms`).
 
 `Makefile` `FEATURES` defaults to the same set as package default. Docker accepts `--build-arg FEATURES=…`.
 
@@ -75,7 +77,7 @@ Hello `/` reports compiled features, `sign_backend`, and whether `KMS_URL` is se
 
 ## HTTP surface
 
-Always present (when the binary builds): health, hello, instances registry, wasm list, chain balance / account / transaction queries.
+Platform routes: health, hello, instances registry, wasm list, chain balance / account / transaction queries.
 
 CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` \| `processed`), `signer.public_key`, `payment_amount`.
 
@@ -86,15 +88,19 @@ CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` 
 | CEP-85 | `/v1/cep85/install`, `mint`, `transfer`, `…/balance-of/{owner}/{id}` |
 | CEP-95 | `/v1/cep95/install`, `transfer-from`, `bind-odra-install`, `…/owner-of/{token_id}` |
 
-OpenAPI lists the paths compiled into the binary. Full route lists are easiest in `/docs/`.
+OpenAPI lists the paths compiled into this binary. Full route lists are easiest in `/docs/`.
 
 ### Signing
+
+Put signing is optional. Pick a backend with `SIGN_BACKEND` (unset / empty / `none` = no put signer).
 
 | Mode | How |
 | --- | --- |
 | none | Queries and `submit=return` (with `tx-return`) work; `submit=put` → `no_signer` |
-| local | `SIGN_BACKEND=local` + keyring; custody `keys/create` can add keys at runtime |
-| kms | `SIGN_BACKEND=kms` + `KMS_URL`; proxy under `/v1/kms/*` |
+| local | Demo / lab: PEMs stay in process memory (`LOCAL_KEYS_JSON` bootstrap, or generate with `POST /v1/keys/create`). No PEM in HTTP bodies. |
+| kms | Keys stay in KMS (`KMS_URL`). Create with `POST /v1/kms/create-key`. API does not hold PEM. |
+
+`POST /v1/chain/fund` funds an account with a native transfer. The funder signs via the active backend (local keyring or KMS). Create the recipient with local custody or with KMS, then fund.
 
 External sign path: `submit=return` → sign elsewhere → `POST /v1/chain/put-transaction` (`chain-put`).
 
@@ -116,7 +122,7 @@ Compose file: [`docker/docker-compose.yml`](docker/docker-compose.yml).
 
 ### Local custody → fund → CEP-18 make
 
-Needs a reachable RPC and CSPR on a key the API can sign (bootstrap out of band, or the live harness below).
+Needs a reachable RPC and CSPR on a funder key the API can sign (bootstrap out of band, or the live harness below). Local create is for demos without KMS: the new secret stays in the process keyring.
 
 ```bash
 SIGN_BACKEND=local CEPS_RPC_URL=http://127.0.0.1:11101 make run
@@ -134,7 +140,7 @@ curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
   -d '{"submit":"return","signer":{"public_key":"<new>"},"payment_amount":"500000000000","name":"Demo","symbol":"DMO","decimals":9,"total_supply":"1000000000000","wasm":"cep18"}'
 ```
 
-With KMS, create via `POST /v1/kms/create-key` and reuse the same fund/install envelopes.
+With KMS (`SIGN_BACKEND=kms`), create the recipient via `POST /v1/kms/create-key`, then use the same `fund` / install envelopes (funder must be a KMS key the peer can sign).
 
 After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `installer_public_key` and `package_hash_key_name` (optional `label` registers an instance).
 
