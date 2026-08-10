@@ -39,6 +39,8 @@ services:
     container_name: ceps-rust-api
     ports:
       - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - APP_ADDR=0.0.0.0
       - APP_PORT=8080
@@ -46,7 +48,8 @@ services:
       - CEPS_SSE_URL=${CEPS_SSE_URL:-http://host.docker.internal:18101/events}
       - CEPS_CHAIN_NAME=${CEPS_CHAIN_NAME:-casper-net-1}
       - RUST_LOG=info
-      # Unset SIGN_BACKEND → none. For KMS: compose --profile kms and set:
-      # - SIGN_BACKEND=kms
-      # - KMS_URL=http://kms-secp256k1-api:4000
-      # LocalStack: compose --profile localstack (or kms). API only needs KMS_URL.
+      - SIGN_BACKEND=${SIGN_BACKEND:-}
+      - KMS_URL=${KMS_URL:-}
+      # Unset SIGN_BACKEND → none. For KMS:
+      # SIGN_BACKEND=kms KMS_URL=http://kms-secp256k1-api:4000 docker compose --profile kms up -d
+      # LocalStack: profile localstack or kms. API only needs KMS_URL.
