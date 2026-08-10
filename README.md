@@ -191,8 +191,8 @@ Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. 
 | `make verify-slices`                 | CI feature-slice builds                                            |
 | `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
 | `make docker-run` / `docker-run-kms` | Compose up                                                         |
-| `scripts/export-nctl-local-keys.sh`  | Ops: print `LOCAL_KEYS_JSON` for NCTL faucet                       |
-| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a public key from NCTL faucet                            |
+| `scripts/export-nctl-local-keys.sh`  | Ops: `LOCAL_KEYS_JSON` for NCTL faucet + users (local mode) |
+| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a KMS public key from NCTL faucet                 |
 | `make version-show`                  | Crate / image tag                                                  |
 
 ## License
