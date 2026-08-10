@@ -344,6 +344,24 @@ async fn openapi_lists_platform_and_cep18_when_enabled() {
         assert!(paths.contains_key("/v1/cep18/transfer"));
         assert!(paths.contains_key("/v1/cep18/{contract_hash}/balance-of/{owner}"));
     }
+    #[cfg(feature = "cep78")]
+    {
+        assert!(paths.contains_key("/v1/cep78/install"));
+        assert!(paths.contains_key("/v1/cep78/mint"));
+        assert!(paths.contains_key("/v1/cep78/{contract_hash}/owner-of/{token}"));
+    }
+    #[cfg(feature = "cep85")]
+    {
+        assert!(paths.contains_key("/v1/cep85/install"));
+        assert!(paths.contains_key("/v1/cep85/mint"));
+        assert!(paths.contains_key("/v1/cep85/{contract_hash}/balance-of/{owner}/{id}"));
+    }
+    #[cfg(feature = "cep95")]
+    {
+        assert!(paths.contains_key("/v1/cep95/install"));
+        assert!(paths.contains_key("/v1/cep95/transfer-from"));
+        assert!(paths.contains_key("/v1/cep95/bind-odra-install"));
+    }
     #[cfg(feature = "chain-put")]
     assert!(paths.contains_key("/v1/chain/put-transaction"));
     #[cfg(not(feature = "chain-put"))]
