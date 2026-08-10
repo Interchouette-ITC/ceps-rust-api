@@ -8,12 +8,12 @@ use actix_web::{get, post, web, HttpResponse};
 use ceps_client::cep78::{
     InstallArgs, NftMetadataKind, OwnershipMode, SetVariablesArgs, TokenIdentifier, UpgradeArgs,
 };
-use ceps_client::{Cep78Client, EventsMode78};
+use ceps_client::{CEP78Client, EventsMode78};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-fn client(state: &AppState) -> Result<Cep78Client, ApiError> {
-    Cep78Client::new(
+fn client(state: &AppState) -> Result<CEP78Client, ApiError> {
+    CEP78Client::new(
         state.config.rpc_url.clone(),
         Some(state.config.sse_url.clone()),
         Some(state.config.chain_name.clone()),
@@ -52,7 +52,7 @@ pub struct ContractRef {
     pub package_hash: Option<String>,
 }
 
-fn bound(state: &AppState, contract: &ContractRef) -> Result<Cep78Client, ApiError> {
+fn bound(state: &AppState, contract: &ContractRef) -> Result<CEP78Client, ApiError> {
     let mut c = client(state)?;
     bind_contract(
         c.core_mut(),
@@ -593,7 +593,7 @@ pub async fn cep78_metadata(
         TokenIdentifier::Hash(token)
     };
     let kind = match query.kind.unwrap_or(0) {
-        0 => NftMetadataKind::Cep78,
+        0 => NftMetadataKind::CEP78,
         1 => NftMetadataKind::Nft721,
         2 => NftMetadataKind::Raw,
         3 => NftMetadataKind::CustomValidated,

@@ -1,7 +1,6 @@
 //! Shared application state.
 
 use crate::config::Config;
-use crate::registry::InstanceRegistry;
 use crate::sign::LocalKeyring;
 use std::sync::Arc;
 
@@ -12,7 +11,6 @@ use crate::kms::KmsClient;
 pub struct AppState {
     pub config: Arc<Config>,
     pub keyring: LocalKeyring,
-    pub registry: InstanceRegistry,
     #[cfg(feature = "sign-kms")]
     pub kms: Option<KmsClient>,
 }
@@ -29,7 +27,6 @@ impl AppState {
 
         Self {
             keyring: config.local_keys.clone(),
-            registry: InstanceRegistry::new(),
             config: Arc::new(config),
             #[cfg(feature = "sign-kms")]
             kms,

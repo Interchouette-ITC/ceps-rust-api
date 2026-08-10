@@ -1,4 +1,4 @@
-//! CEP-95 HTTP routes (Cep95Client surface).
+//! CEP-95 HTTP routes (CEP95Client surface).
 
 use crate::error::ApiError;
 use crate::routes::common::{bind_contract, cep_core, resolve_wasm};
@@ -6,12 +6,12 @@ use crate::state::AppState;
 use crate::tx::{build_transaction_params, finalize_call, MutateEnvelope};
 use actix_web::{get, post, web, HttpResponse};
 use ceps_client::cep95::InstallArgs;
-use ceps_client::Cep95Client;
+use ceps_client::CEP95Client;
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-fn client(state: &AppState) -> Result<Cep95Client, ApiError> {
-    Cep95Client::new(
+fn client(state: &AppState) -> Result<CEP95Client, ApiError> {
+    CEP95Client::new(
         state.config.rpc_url.clone(),
         Some(state.config.sse_url.clone()),
         Some(state.config.chain_name.clone()),
@@ -36,7 +36,7 @@ pub struct ContractRef {
     pub package_hash: Option<String>,
 }
 
-fn bound(state: &AppState, contract: &ContractRef) -> Result<Cep95Client, ApiError> {
+fn bound(state: &AppState, contract: &ContractRef) -> Result<CEP95Client, ApiError> {
     let mut c = client(state)?;
     bind_contract(
         c.core_mut(),
@@ -351,8 +351,6 @@ pub async fn cep95_token_metadata(
 pub struct BindOdraInstallBody {
     pub installer_public_key: String,
     pub package_hash_key_name: String,
-    /// When set, register the resolved hashes in the in-memory instance registry.
-    pub label: Option<String>,
 }
 
 #[utoipa::path(
@@ -372,18 +370,8 @@ pub async fn cep95_bind_odra_install(
         .bind_odra_install(&body.installer_public_key, &body.package_hash_key_name)
         .await
         .map_err(ApiError::from_cep)?;
-    let mut out = serde_json::json!({
+    Ok(HttpResponse::Ok().json(serde_json::json!({
         "contract_hash": contract_hash,
         "package_hash": package_hash,
-    });
-    if body.label.is_some() {
-        let rec = state.registry.register(
-            "95",
-            &contract_hash,
-            Some(package_hash.clone()),
-            body.label.clone(),
-        );
-        out["instance"] = serde_json::to_value(rec).unwrap_or_default();
-    }
-    Ok(HttpResponse::Ok().json(out))
+    })))
 }

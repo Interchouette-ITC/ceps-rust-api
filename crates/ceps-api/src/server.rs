@@ -5,8 +5,9 @@ use crate::middleware::cors::demo_cors;
 use crate::openapi::build_openapi;
 use crate::routes::{health_handler, hello_handler};
 use crate::state::AppState;
+use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use tracing::info;
+use tracing::{info, warn};
 
 #[cfg(feature = "swagger-ui")]
 use utoipa_swagger_ui::SwaggerUi;
@@ -17,6 +18,12 @@ async fn redirect_docs_absolute() -> impl Responder {
         .finish()
 }
 
+#[cfg(any(
+    feature = "cep18",
+    feature = "cep78",
+    feature = "cep85",
+    feature = "cep95"
+))]
 macro_rules! svc {
     ($app:ident, $($s:expr),+ $(,)?) => {{
         $(
@@ -43,22 +50,11 @@ pub fn create_app(
 
     let mut app = App::new()
         .app_data(web::Data::new(state))
+        .wrap(Logger::default())
         .wrap(demo_cors())
         .service(hello_handler)
         .service(health_handler)
         .route("/docs", web::get().to(redirect_docs_absolute));
-
-    app = svc!(
-        app,
-        crate::routes::chain::chain_balance,
-        crate::routes::chain::chain_account,
-        crate::routes::chain::chain_transaction,
-        crate::routes::instances::list_instances,
-        crate::routes::instances::register_instance,
-        crate::routes::instances::get_instance,
-        crate::routes::instances::delete_instance,
-        crate::routes::wasm::list_wasm,
-    );
 
     #[cfg(feature = "chain-put")]
     {
@@ -191,13 +187,30 @@ pub fn create_app(
 pub async fn run_server(config: Config) -> std::io::Result<()> {
     let bind = config.bind_addr();
     let state = AppState::new(config);
-    info!(%bind, "ceps-rust-api listening");
+    info!(
+        version = crate::VERSION,
+        %bind,
+        rpc = %state.config.rpc_url,
+        chain = %state.config.chain_name,
+        "listening"
+    );
+    info!(ceps = ?state.config.enabled_ceps(), "compiled CEP features");
+    // Custody mode stays in process logs only (never on GET /).
     info!(
         sign_backend = %state.config.sign_backend.as_str(),
-        kms_url_configured = state.config.kms_url_configured(),
-        "sign config"
+        kms_url_set = state.config.kms_url_configured(),
+        local_keyring_len = state.config.local_keys.len(),
+        "signing"
     );
-    info!(ceps = ?state.config.enabled_ceps(), "enabled CEP features");
+    if state.config.sign_backend.signs_for_callers() {
+        warn!(
+            sign_backend = %state.config.sign_backend.as_str(),
+            "signing enabled: keep this listener on a private network (any caller who names a loaded public key can request a put signature)"
+        );
+    }
+    if cfg!(feature = "swagger-ui") {
+        info!(docs = %format!("http://{bind}/docs/"), "openapi");
+    }
 
     HttpServer::new(move || create_app(state.clone()))
         .bind(&bind)?
@@ -221,7 +234,10 @@ mod tests {
         let body: serde_json::Value = test::read_body_json(resp).await;
         assert_eq!(body["info"]["title"], "ceps-rust-api");
         assert!(body["paths"].get("/health").is_some());
-        assert!(body["paths"].get("/v1/instances/{id}").is_some());
+        #[cfg(feature = "chain-put")]
+        assert!(body["paths"].get("/v1/chain/put-transaction").is_some());
+        assert!(body["paths"].get("/v1/instances/{id}").is_none());
+        assert!(body["paths"].get("/v1/wasm").is_none());
     }
 
     #[actix_web::test]

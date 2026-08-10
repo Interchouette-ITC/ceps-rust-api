@@ -2,8 +2,10 @@
 //!
 //! Used only for signing puts. Key create/list stay on the KMS peer HTTP API.
 
+use crate::constants::KMS_HTTP_TIMEOUT_SECS;
 use crate::error::ApiError;
 use serde_json::Value;
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct KmsClient {
@@ -14,9 +16,13 @@ pub struct KmsClient {
 impl KmsClient {
     #[must_use]
     pub fn new(base_url: impl Into<String>) -> Self {
+        let http = reqwest::Client::builder()
+            .timeout(Duration::from_secs(KMS_HTTP_TIMEOUT_SECS))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         Self {
             base: base_url.into().trim_end_matches('/').to_string(),
-            http: reqwest::Client::new(),
+            http,
         }
     }
 

@@ -34,8 +34,8 @@ services:
   ceps-rust-api:
     image: ${CEPS_API_IMAGE:-interchouette/ceps-rust-api:latest}
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: ceps-rust-api/docker/Dockerfile
     container_name: ceps-rust-api
     ports:
       - "8080:8080"

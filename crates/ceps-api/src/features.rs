@@ -40,11 +40,14 @@ mod tests {
     #[test]
     fn default_build_has_socle_addons() {
         let f = CompiledFeatures::current();
-        #[cfg(feature = "ceps-all")]
-        {
-            assert!(f.cep18 && f.cep78 && f.cep85 && f.cep95);
-        }
-        #[cfg(feature = "tx-return")]
-        assert!(f.tx_return);
+        assert_eq!(f.cep18, cfg!(feature = "cep18"));
+        assert_eq!(f.cep78, cfg!(feature = "cep78"));
+        assert_eq!(f.cep85, cfg!(feature = "cep85"));
+        assert_eq!(f.cep95, cfg!(feature = "cep95"));
+        assert_eq!(f.tx_return, cfg!(feature = "tx-return"));
+        assert_eq!(f.sign_local, cfg!(feature = "sign-local"));
+        assert_eq!(f.sign_kms, cfg!(feature = "sign-kms"));
+        assert_eq!(f.chain_put, cfg!(feature = "chain-put"));
+        assert_eq!(f.swagger_ui, cfg!(feature = "swagger-ui"));
     }
 }

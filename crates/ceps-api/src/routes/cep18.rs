@@ -6,12 +6,12 @@ use crate::state::AppState;
 use crate::tx::{build_transaction_params, finalize_call, MutateEnvelope};
 use actix_web::{get, post, web, HttpResponse};
 use ceps_client::cep18::{ChangeSecurityArgs, InstallArgs, UpgradeArgs};
-use ceps_client::{Cep18Client, EventsMode};
+use ceps_client::{CEP18Client, EventsMode};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-fn client(state: &AppState) -> Result<Cep18Client, ApiError> {
-    Cep18Client::new(
+fn client(state: &AppState) -> Result<CEP18Client, ApiError> {
+    CEP18Client::new(
         state.config.rpc_url.clone(),
         Some(state.config.sse_url.clone()),
         Some(state.config.chain_name.clone()),
@@ -356,7 +356,7 @@ fn bound_client(
     state: &AppState,
     contract_hash: &str,
     package_hash: Option<&str>,
-) -> Result<Cep18Client, ApiError> {
+) -> Result<CEP18Client, ApiError> {
     let mut client = client(state)?;
     bind_contract(client.core_mut(), contract_hash, package_hash)?;
     Ok(client)

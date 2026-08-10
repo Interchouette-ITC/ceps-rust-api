@@ -1,14 +1,14 @@
 //! Integration tests: pipeline matrix, feature imply/forbid, live NCTL smoke when reachable.
 
 use actix_web::test;
-use ceps_api::config::Config;
-use ceps_api::server::create_app;
-use ceps_api::state::AppState;
+use ceps_rust_api::config::Config;
+use ceps_rust_api::server::create_app;
+use ceps_rust_api::state::AppState;
 
 #[cfg(feature = "sign-local")]
-use ceps_api::config::SignBackend;
+use ceps_rust_api::config::SignBackend;
 #[cfg(feature = "sign-local")]
-use ceps_api::sign::LocalKeyring;
+use ceps_rust_api::sign::LocalKeyring;
 
 fn app_none() -> AppState {
     AppState::new(Config::default())
@@ -22,7 +22,14 @@ async fn health_and_hello_features() {
 
     let resp = test::call_service(&app, test::TestRequest::get().uri("/").to_request()).await;
     let body: serde_json::Value = test::read_body_json(resp).await;
-    assert_eq!(body["sign_backend"], "none");
+    assert_eq!(body["name"], "ceps-rust-api");
+    assert!(body
+        .get("version")
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| !s.is_empty()));
+    assert!(body.get("sign_backend").is_none());
+    assert!(body.get("kms_url_configured").is_none());
+    assert!(body.get("local_keys_loaded").is_none());
     assert_eq!(body["features"]["tx_return"], cfg!(feature = "tx-return"));
     assert_eq!(body["features"]["cep18"], cfg!(feature = "cep18"));
 }
@@ -101,49 +108,14 @@ async fn chain_put_rejects_invalid_json() {
     assert_eq!(resp.status(), 400);
 }
 
-#[actix_web::test]
-async fn instances_register_list_delete() {
-    let app = test::init_service(create_app(app_none())).await;
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/instances")
-            .set_json(serde_json::json!({
-                "cep": "18",
-                "contract_hash": "aaa",
-                "label": "demo"
-            }))
-            .to_request(),
-    )
-    .await;
-    assert!(resp.status().is_success());
-    let created: serde_json::Value = test::read_body_json(resp).await;
-    let id = created["id"].as_str().unwrap().to_string();
-
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::get().uri("/v1/instances").to_request(),
-    )
-    .await;
-    let list: Vec<serde_json::Value> = test::read_body_json(resp).await;
-    assert_eq!(list.len(), 1);
-
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::delete()
-            .uri(&format!("/v1/instances/{id}"))
-            .to_request(),
-    )
-    .await;
-    assert_eq!(resp.status(), 204);
-}
-
 #[cfg(all(feature = "cep18", feature = "sign-local"))]
 #[actix_web::test]
 async fn local_put_missing_key_is_no_signer() {
-    let mut cfg = Config::default();
-    cfg.sign_backend = SignBackend::Local;
-    cfg.local_keys = LocalKeyring::new();
+    let cfg = Config {
+        sign_backend: SignBackend::Local,
+        local_keys: LocalKeyring::new(),
+        ..Default::default()
+    };
     let app = test::init_service(create_app(AppState::new(cfg))).await;
     let resp = test::call_service(
         &app,
@@ -165,45 +137,11 @@ async fn local_put_missing_key_is_no_signer() {
     assert_eq!(body["code"], "no_signer");
 }
 
-#[actix_web::test]
-async fn live_chain_account_when_rpc_up() {
-    let ok = reqwest::Client::new()
-        .post("http://127.0.0.1:11101/rpc")
-        .json(&serde_json::json!({
-            "id": 1,
-            "jsonrpc": "2.0",
-            "method": "info_get_status",
-            "params": []
-        }))
-        .send()
-        .await
-        .map(|r| r.status().is_success())
-        .unwrap_or(false);
-    if !ok {
-        eprintln!("skip live chain test: RPC unreachable");
-        return;
-    }
-    let app = test::init_service(create_app(app_none())).await;
-    // faucet-ish public key may or may not exist; just assert route answers 200 or 502
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::get()
-            .uri("/v1/chain/account/010101010101010101010101010101010101010101010101010101010101010101")
-            .to_request(),
-    )
-    .await;
-    assert!(
-        resp.status().is_success() || resp.status().as_u16() == 502,
-        "unexpected {}",
-        resp.status()
-    );
-}
-
 #[cfg(feature = "sign-kms")]
 #[actix_web::test]
 async fn kms_sign_client_via_wiremock() {
-    use ceps_api::config::SignBackend;
-    use ceps_api::kms::KmsClient;
+    use ceps_rust_api::config::SignBackend;
+    use ceps_rust_api::kms::KmsClient;
     use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -220,9 +158,11 @@ async fn kms_sign_client_via_wiremock() {
         .mount(&server)
         .await;
 
-    let mut cfg = Config::default();
-    cfg.sign_backend = SignBackend::Kms;
-    cfg.kms_url = server.uri();
+    let cfg = Config {
+        sign_backend: SignBackend::Kms,
+        kms_url: server.uri(),
+        ..Default::default()
+    };
     let _state = AppState::new(cfg);
     let client = KmsClient::new(server.uri());
     let signed = client
@@ -292,8 +232,15 @@ async fn openapi_lists_platform_and_cep18_when_enabled() {
     assert!(resp.status().is_success());
     let body: serde_json::Value = test::read_body_json(resp).await;
     let paths = body["paths"].as_object().expect("paths");
-    assert!(paths.contains_key("/v1/instances/{id}"));
-    assert!(paths.contains_key("/v1/chain/balance/{public_key}"));
+    assert!(!paths.contains_key("/v1/instances/{id}"));
+    assert!(!paths.contains_key("/v1/wasm"));
+    #[cfg(feature = "chain-put")]
+    assert!(paths.contains_key("/v1/chain/put-transaction"));
+    #[cfg(not(feature = "chain-put"))]
+    assert!(!paths.contains_key("/v1/chain/put-transaction"));
+    assert!(!paths.contains_key("/v1/chain/balance/{public_key}"));
+    assert!(!paths.contains_key("/v1/chain/account/{public_key}"));
+    assert!(!paths.contains_key("/v1/chain/transaction/{hash}"));
     #[cfg(feature = "cep18")]
     {
         assert!(paths.contains_key("/v1/cep18/install"));
@@ -318,8 +265,4 @@ async fn openapi_lists_platform_and_cep18_when_enabled() {
         assert!(paths.contains_key("/v1/cep95/transfer-from"));
         assert!(paths.contains_key("/v1/cep95/bind-odra-install"));
     }
-    #[cfg(feature = "chain-put")]
-    assert!(paths.contains_key("/v1/chain/put-transaction"));
-    #[cfg(not(feature = "chain-put"))]
-    assert!(!paths.contains_key("/v1/chain/put-transaction"));
 }

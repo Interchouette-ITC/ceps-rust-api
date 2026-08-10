@@ -1,4 +1,4 @@
-//! `OpenAPI` document aggregation.
+//! OpenAPI document aggregation.
 
 use crate::features::CompiledFeatures;
 use crate::routes::{health::HealthResult, hello::HelloResult};
@@ -10,32 +10,20 @@ use utoipa::OpenApi;
     paths(
         crate::routes::hello::hello_handler,
         crate::routes::health::health_handler,
-        crate::routes::chain::chain_balance,
-        crate::routes::chain::chain_account,
-        crate::routes::chain::chain_transaction,
-        crate::routes::instances::list_instances,
-        crate::routes::instances::register_instance,
-        crate::routes::instances::get_instance,
-        crate::routes::instances::delete_instance,
-        crate::routes::wasm::list_wasm,
     ),
     components(schemas(
         HelloResult,
         HealthResult,
         CompiledFeatures,
         PipelineOutcome,
-        crate::registry::InstanceRecord,
-        crate::routes::wasm::WasmEntry,
         crate::tx::MutateEnvelope,
         crate::tx::SubmitMode,
         crate::tx::WaitMode,
         crate::tx::SignerRef,
-        crate::routes::chain::BalanceResult,
     )),
     tags(
         (name = "Health", description = "Liveness and hello"),
-        (name = "Chain", description = "Native CSPR and transaction queries"),
-        (name = "Instances", description = "CEP contract instance registry and wasm"),
+        (name = "Chain", description = "Put already-signed Transaction JSON"),
         (name = "CEP-18", description = "Fungible token"),
         (name = "CEP-78", description = "NFT"),
         (name = "CEP-85", description = "Multi-token"),
@@ -43,7 +31,7 @@ use utoipa::OpenApi;
     ),
     info(
         title = "ceps-rust-api",
-        description = "Casper CEP HTTP API. Socle queries and CEP routes; optional local or KMS signing (no PEM in HTTP bodies). Uses Transactions only.",
+        description = "Casper CEP HTTP API. CEP routes and optional local or KMS put signing (no PEM in HTTP bodies). Uses Transactions only.",
         version = "0.1.0"
     )
 )]
@@ -123,16 +111,36 @@ struct ApiDocCep95;
 /// Build the OpenAPI document for the compiled feature set.
 #[must_use]
 pub fn build_openapi() -> utoipa::openapi::OpenApi {
-    let mut doc = ApiDoc::openapi();
-    #[cfg(feature = "chain-put")]
-    doc.merge(ApiDocChainPut::openapi());
-    #[cfg(feature = "cep18")]
-    doc.merge(ApiDocCep18::openapi());
-    #[cfg(feature = "cep78")]
-    doc.merge(ApiDocCep78::openapi());
-    #[cfg(feature = "cep85")]
-    doc.merge(ApiDocCep85::openapi());
-    #[cfg(feature = "cep95")]
-    doc.merge(ApiDocCep95::openapi());
-    doc
+    let doc = ApiDoc::openapi();
+    #[cfg(not(any(
+        feature = "chain-put",
+        feature = "cep18",
+        feature = "cep78",
+        feature = "cep85",
+        feature = "cep95"
+    )))]
+    {
+        return doc;
+    }
+    #[cfg(any(
+        feature = "chain-put",
+        feature = "cep18",
+        feature = "cep78",
+        feature = "cep85",
+        feature = "cep95"
+    ))]
+    {
+        let mut doc = doc;
+        #[cfg(feature = "chain-put")]
+        doc.merge(ApiDocChainPut::openapi());
+        #[cfg(feature = "cep18")]
+        doc.merge(ApiDocCep18::openapi());
+        #[cfg(feature = "cep78")]
+        doc.merge(ApiDocCep78::openapi());
+        #[cfg(feature = "cep85")]
+        doc.merge(ApiDocCep85::openapi());
+        #[cfg(feature = "cep95")]
+        doc.merge(ApiDocCep95::openapi());
+        doc
+    }
 }
