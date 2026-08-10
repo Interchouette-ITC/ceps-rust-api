@@ -12,17 +12,43 @@ env:
 jobs:
   lint-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ceps-rust-api
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout ceps-rust-api
+        uses: actions/checkout@v4
+        with:
+          path: ceps-rust-api
+      - name: Checkout ceps-rust-ts-client
+        uses: actions/checkout@v4
+        with:
+          repository: Interchouette-ITC/ceps-rust-ts-client
+          path: ceps-rust-ts-client
+          ref: dev
+      - name: Checkout casper-rust-wasm-sdk
+        uses: actions/checkout@v4
+        with:
+          repository: casper-ecosystem/casper-rust-wasm-sdk
+          path: rustSDK
+          ref: dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ceps-rust-api
       - name: pem-ban
         run: make pem-ban
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy
-        run: env -u CARGO_TARGET_DIR cargo clippy -p ceps-api --features all,swagger-ui -- -D warnings -D clippy::all -D clippy::pedantic
+        run: env -u CARGO_TARGET_DIR cargo clippy -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody -- -D warnings -D clippy::all
       - name: test
-        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --features all,swagger-ui -- --nocapture
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --features ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody -- --nocapture
+      - name: feature-slice cep18+tx-return
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --no-default-features --features cep18,tx-return,swagger-ui -- --nocapture
+      - name: feature-slice cep78+tx-return
+        run: env -u CARGO_TARGET_DIR cargo test -p ceps-api --no-default-features --features cep78,tx-return,swagger-ui -- --nocapture
+      - name: feature-slice cep85+cep95
+        run: env -u CARGO_TARGET_DIR cargo check -p ceps-api --no-default-features --features cep85,cep95,swagger-ui

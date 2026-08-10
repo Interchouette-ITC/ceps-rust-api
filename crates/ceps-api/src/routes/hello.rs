@@ -1,6 +1,7 @@
 //! Root hello.
 
 use crate::config::enabled_cep_features;
+use crate::features::CompiledFeatures;
 use crate::state::AppState;
 use crate::VERSION;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -13,7 +14,7 @@ pub struct HelloResult {
     pub version: String,
     pub framework: String,
     pub enabled_ceps: Vec<String>,
-    /// Runtime sign backend: `none`, `local`, or `kms` (unset env → `none`).
+    pub features: CompiledFeatures,
     pub sign_backend: String,
     pub kms_url_configured: bool,
 }
@@ -35,6 +36,7 @@ pub async fn hello_handler(state: web::Data<AppState>) -> impl Responder {
         version: VERSION.to_string(),
         framework: "actix-web".to_string(),
         enabled_ceps,
+        features: CompiledFeatures::current(),
         sign_backend: state.config.sign_backend.as_str().to_string(),
         kms_url_configured: state.config.kms_url_configured(),
     })
@@ -56,5 +58,6 @@ mod tests {
         let body: HelloResult = test::read_body_json(resp).await;
         assert_eq!(body.sign_backend, "none");
         assert!(!body.kms_url_configured);
+        assert_eq!(body.features, CompiledFeatures::current());
     }
 }

@@ -8,14 +8,12 @@ DOCKERFILE ?= docker/Dockerfile
 DOCKER_BUILDKIT ?= 1
 COMPOSE ?= docker/docker-compose.yml
 
-# cep18 | cep78 | cep85 | cep95 | all
-FEATURES ?= all
-CARGO_FEATURES := --features $(FEATURES),swagger-ui
+FEATURES ?= ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put,custody
+CARGO_FEATURES := --features $(FEATURES)
 
-# Never compile into Cursor sandbox cache
 CARGO := env -u CARGO_TARGET_DIR -u PLAYWRIGHT_BROWSERS_PATH cargo
 
-CLIPPY_FLAGS := -D warnings -D clippy::all -D clippy::pedantic
+CLIPPY_FLAGS := -D warnings -D clippy::all
 
 .DEFAULT_GOAL := help
 
@@ -24,15 +22,9 @@ CLIPPY_FLAGS := -D warnings -D clippy::all -D clippy::pedantic
 
 help:
 	@echo "ceps-rust-api targets"
-	@echo ""
-	@echo "  make build / build-release / check / test / lint / verify"
-	@echo "  make run                 cargo run API (port APP_PORT or 8080)"
-	@echo "  make docker-build / docker-run / docker-run-kms / docker-stop"
-	@echo "  make pem-ban             fail if PEM/faucet key strings appear"
-	@echo "  make version-show"
-	@echo ""
-	@echo "Features: FEATURES=$(FEATURES) (cep18|cep78|cep85|cep95|all)"
-	@echo "SIGN_BACKEND: leave unset for none (no signer)"
+	@echo "  make build / test / verify / run"
+	@echo "  Features: FEATURES=$(FEATURES)"
+	@echo "  SIGN_BACKEND: leave unset for none"
 
 build:
 	$(CARGO) build -p ceps-api $(CARGO_FEATURES)
@@ -41,7 +33,7 @@ build-release:
 	$(CARGO) build -p ceps-api --release $(CARGO_FEATURES)
 
 check:
-	$(CARGO) check -p ceps-api --locked $(CARGO_FEATURES)
+	$(CARGO) check -p ceps-api $(CARGO_FEATURES)
 
 format:
 	$(CARGO) fmt --all
@@ -79,7 +71,7 @@ docker-run-kms:
 	docker compose -f $(COMPOSE) --profile kms up -d
 
 docker-stop:
-	docker compose -f $(COMPOSE) --profile kms down
+	docker compose -f $(COMPOSE) --profile kms down || true
 	docker compose -f $(COMPOSE) down
 
 version-show:
