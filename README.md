@@ -212,13 +212,13 @@ curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
 
 ### KMS put signing (private network)
 
-Pre-test / ops (outside this API): create on KMS, fund the public key, then:
+Pre-test / ops (outside this API): create on KMS (`BLOCKCHAIN_MODE=casper`), fund createKey **`address`** (Casper PublicKey hex; not the SEC1 `public_key` field), then:
 
 ```bash
-scripts/fund-kms-from-nctl.sh <kms-public-key-hex>
+scripts/fund-kms-from-nctl.sh <createKey-address>
 
 SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000 make run
-# CEP submit=put with signer.public_key = the funded KMS public key
+# CEP submit=put with signer.public_key = that same address
 ```
 
 After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `installer_public_key` and `package_hash_key_name` (returns contract/package hashes).

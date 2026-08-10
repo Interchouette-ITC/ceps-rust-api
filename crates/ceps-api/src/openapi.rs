@@ -111,16 +111,36 @@ struct ApiDocCep95;
 /// Build the OpenAPI document for the compiled feature set.
 #[must_use]
 pub fn build_openapi() -> utoipa::openapi::OpenApi {
-    let mut doc = ApiDoc::openapi();
-    #[cfg(feature = "chain-put")]
-    doc.merge(ApiDocChainPut::openapi());
-    #[cfg(feature = "cep18")]
-    doc.merge(ApiDocCep18::openapi());
-    #[cfg(feature = "cep78")]
-    doc.merge(ApiDocCep78::openapi());
-    #[cfg(feature = "cep85")]
-    doc.merge(ApiDocCep85::openapi());
-    #[cfg(feature = "cep95")]
-    doc.merge(ApiDocCep95::openapi());
-    doc
+    let doc = ApiDoc::openapi();
+    #[cfg(not(any(
+        feature = "chain-put",
+        feature = "cep18",
+        feature = "cep78",
+        feature = "cep85",
+        feature = "cep95"
+    )))]
+    {
+        return doc;
+    }
+    #[cfg(any(
+        feature = "chain-put",
+        feature = "cep18",
+        feature = "cep78",
+        feature = "cep85",
+        feature = "cep95"
+    ))]
+    {
+        let mut doc = doc;
+        #[cfg(feature = "chain-put")]
+        doc.merge(ApiDocChainPut::openapi());
+        #[cfg(feature = "cep18")]
+        doc.merge(ApiDocCep18::openapi());
+        #[cfg(feature = "cep78")]
+        doc.merge(ApiDocCep78::openapi());
+        #[cfg(feature = "cep85")]
+        doc.merge(ApiDocCep85::openapi());
+        #[cfg(feature = "cep95")]
+        doc.merge(ApiDocCep95::openapi());
+        doc
+    }
 }

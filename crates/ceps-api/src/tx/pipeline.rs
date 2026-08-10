@@ -156,17 +156,17 @@ mod tests {
 
     #[test]
     fn return_unsigned_uses_initiator() {
-        let state = AppState::new(Config::default());
-        let env = MutateEnvelope {
-            submit: SubmitMode::Return,
-            wait: WaitMode::Accepted,
-            signer: SignerRef {
-                public_key: "01aabb".into(),
-            },
-            payment_amount: "100".into(),
-        };
         #[cfg(feature = "tx-return")]
         {
+            let state = AppState::new(Config::default());
+            let env = MutateEnvelope {
+                submit: SubmitMode::Return,
+                wait: WaitMode::Accepted,
+                signer: SignerRef {
+                    public_key: "01aabb".into(),
+                },
+                payment_amount: "100".into(),
+            };
             let tx = build_transaction_params(&state, &env).unwrap();
             assert!(!tx.put);
             assert_eq!(tx.initiator_addr.as_deref(), Some("01aabb"));

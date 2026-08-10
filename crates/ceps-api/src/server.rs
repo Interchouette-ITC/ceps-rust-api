@@ -18,6 +18,12 @@ async fn redirect_docs_absolute() -> impl Responder {
         .finish()
 }
 
+#[cfg(any(
+    feature = "cep18",
+    feature = "cep78",
+    feature = "cep85",
+    feature = "cep95"
+))]
 macro_rules! svc {
     ($app:ident, $($s:expr),+ $(,)?) => {{
         $(

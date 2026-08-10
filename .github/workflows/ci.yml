@@ -176,8 +176,10 @@ jobs:
             sleep 2
           done
           BODY=$(curl -sS -X POST http://127.0.0.1:4000/createKey -H 'content-type: application/json' -d '{}')
-          PK=$(echo "$BODY" | jq -r '.publicKey // .public_key // empty')
+          # Casper mode: use address (02-prefixed PublicKey). public_key is SEC1 without the tag.
+          PK=$(echo "$BODY" | jq -r '.address // empty')
           test -n "$PK"
+          test "${#PK}" -eq 68
           NCTL_CONTAINER=casper-nctl-2-docker-ci ./scripts/fund-kms-from-nctl.sh "$PK"
           {
             echo "SIGN_BACKEND=kms"

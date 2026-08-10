@@ -6,6 +6,10 @@
 # Arbitrary targets (KMS createKey pubkeys) use casper-client transfer,
 # the same client NCTL wraps internally.
 #
+# For kms-secp256k1-api with BLOCKCHAIN_MODE=casper, pass createKey **address**
+# (Casper PublicKey hex, 68 chars, starts with 0202/0203). Do not pass the
+# bare SEC1 `public_key` field (66 chars).
+#
 # Default: docker exec into a running NCTL container (faucet assets already mounted).
 # Fallback: host casper-client + NCTL_ASSETS on the host.
 #
