@@ -13,12 +13,12 @@ make verify
 make run
 ```
 
-| URL                                            | Purpose                           |
-| ---------------------------------------------- | --------------------------------- |
-| `http://127.0.0.1:8080/`                       | Hello (`name`, `version`, features, signer, RPC) |
-| `http://127.0.0.1:8080/health`                 | Liveness                          |
-| `http://127.0.0.1:8080/docs/`                  | Swagger UI                        |
-| `http://127.0.0.1:8080/docs/ceps-openapi.json` | OpenAPI JSON                      |
+| URL                                            | Purpose                                          |
+| ---------------------------------------------- | ------------------------------------------------ |
+| `http://127.0.0.1:8080/`                       | Hello (`name`, `version`, features, node URLs) |
+| `http://127.0.0.1:8080/health`                 | Liveness                                         |
+| `http://127.0.0.1:8080/docs/`                  | Swagger UI                                       |
+| `http://127.0.0.1:8080/docs/ceps-openapi.json` | OpenAPI JSON                                     |
 
 Default node settings match local NCTL: RPC `http://127.0.0.1:11101`, SSE `http://127.0.0.1:18101/events`, chain `casper-net-1`.
 
@@ -71,7 +71,7 @@ There is no HTTP key create, key list, or fund route on this API.
 
 `Makefile` `FEATURES` defaults to the same set as package default. Docker accepts `--build-arg FEATURES=…`.
 
-Hello `/` reports compiled features, `sign_backend`, and whether `KMS_URL` is set.
+Hello `/` reports `name`, `version`, node URLs, compiled CEP features, and docs path. It does **not** expose signing backend or keyring/KMS custody state.
 
 ## HTTP surface
 
@@ -98,11 +98,10 @@ OpenAPI lists the paths compiled into this binary. Full route lists are easiest 
 
 #### How signing modes are tested (same shape)
 
-| Mode      | Keys                                  | Fund                                                                                                           | Then                          |
-| --------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| **local** | NCTL faucet/users → `LOCAL_KEYS_JSON` | Already funded by NCTL                                                                                         | `SIGN_BACKEND=local`, CEP put |
+| Mode      | Keys                                  | Fund                                                                                                     | Then                          |
+| --------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| **local** | NCTL faucet/users → `LOCAL_KEYS_JSON` | Already funded by NCTL                                                                                   | `SIGN_BACKEND=local`, CEP put |
 | **kms**   | Create on KMS HTTP                    | Fund those public keys from NCTL faucet **before** tests (`scripts/fund-kms-from-nctl.sh`; not this API) | `SIGN_BACKEND=kms`, CEP put   |
-
 
 CI always covers KMS **sign** via wiremock. Live KMS create+fund is a **pre-test** step (restarted empty KMS ⇒ recreate and refund).
 
@@ -185,16 +184,16 @@ Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. 
 
 ## Make targets
 
-| Target                               | Purpose                                    |
-| ------------------------------------ | ------------------------------------------ |
-| `make build` / `run`                 | Debug binary                               |
-| `make verify`                        | fmt, clippy, pem-ban, tests                |
-| `make verify-slices`                 | CI feature-slice builds                    |
+| Target                               | Purpose                                                            |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `make build` / `run`                 | Debug binary                                                       |
+| `make verify`                        | fmt, clippy, pem-ban, tests                                        |
+| `make verify-slices`                 | CI feature-slice builds                                            |
 | `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
-| `make docker-run` / `docker-run-kms` | Compose up                                 |
-| `scripts/export-nctl-local-keys.sh`  | Ops: print `LOCAL_KEYS_JSON` for NCTL faucet |
-| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a public key from NCTL faucet  |
-| `make version-show`                  | Crate / image tag                          |
+| `make docker-run` / `docker-run-kms` | Compose up                                                         |
+| `scripts/export-nctl-local-keys.sh`  | Ops: print `LOCAL_KEYS_JSON` for NCTL faucet                       |
+| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a public key from NCTL faucet                            |
+| `make version-show`                  | Crate / image tag                                                  |
 
 ## License
 

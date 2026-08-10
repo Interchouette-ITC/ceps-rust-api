@@ -16,7 +16,7 @@ use harness::{rpc_reachable, state_from_env};
 use std::env;
 
 #[actix_web::test]
-async fn hello_reports_version_and_kms_backend() {
+async fn hello_reports_identity() {
     let state = state_from_env();
     if state.config.sign_backend != SignBackend::Kms || !state.config.kms_url_configured() {
         eprintln!("skip live_kms: set SIGN_BACKEND=kms and KMS_URL");
@@ -33,8 +33,6 @@ async fn hello_reports_version_and_kms_backend() {
     let body: HelloResult = test::read_body_json(resp).await;
     assert_eq!(body.name, "ceps-rust-api");
     assert!(!body.version.is_empty());
-    assert_eq!(body.sign_backend, "kms");
-    assert!(body.kms_url_configured);
 }
 
 #[actix_web::test]

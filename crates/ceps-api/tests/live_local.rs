@@ -14,7 +14,7 @@ use ceps_rust_api::server::create_app;
 use harness::{rpc_reachable, state_from_env};
 
 #[actix_web::test]
-async fn hello_reports_version_and_local_backend() {
+async fn hello_reports_identity() {
     let state = state_from_env();
     if state.keyring.is_empty() {
         eprintln!("skip live_local: set LOCAL_KEYS_JSON (scripts/export-nctl-local-keys.sh)");
@@ -34,8 +34,6 @@ async fn hello_reports_version_and_local_backend() {
     let body: HelloResult = test::read_body_json(resp).await;
     assert_eq!(body.name, "ceps-rust-api");
     assert!(!body.version.is_empty());
-    assert_eq!(body.sign_backend, "local");
-    assert!(body.local_keys_loaded >= 1);
     assert!(!body.rpc_url.is_empty());
     assert!(!body.chain_name.is_empty());
 }

@@ -22,7 +22,14 @@ async fn health_and_hello_features() {
 
     let resp = test::call_service(&app, test::TestRequest::get().uri("/").to_request()).await;
     let body: serde_json::Value = test::read_body_json(resp).await;
-    assert_eq!(body["sign_backend"], "none");
+    assert_eq!(body["name"], "ceps-rust-api");
+    assert!(body
+        .get("version")
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| !s.is_empty()));
+    assert!(body.get("sign_backend").is_none());
+    assert!(body.get("kms_url_configured").is_none());
+    assert!(body.get("local_keys_loaded").is_none());
     assert_eq!(body["features"]["tx_return"], cfg!(feature = "tx-return"));
     assert_eq!(body["features"]["cep18"], cfg!(feature = "cep18"));
 }
