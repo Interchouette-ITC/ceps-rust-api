@@ -33,8 +33,16 @@ cep78 = []
 cep85 = []
 cep95 = []
 ceps-all = ["cep18", "cep78", "cep85", "cep95"]
-# Alias for older Makefile FEATURES=all
-all = ["ceps-all"]
+# Full demo set (same as package default). Prefer naming features explicitly in docs.
+all = [
+  "ceps-all",
+  "swagger-ui",
+  "tx-return",
+  "sign-local",
+  "sign-kms",
+  "chain-put",
+  "custody",
+]
 tx-return = []
 sign-local = []
 sign-kms = []

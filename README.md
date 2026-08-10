@@ -12,7 +12,8 @@ Actix HTTP API for Casper **CEP-18 / CEP-78 / CEP-85 / CEP-95**. Socle works wit
 
 | Cargo feature | ON | OFF |
 | ------------- | -- | --- |
-| `cep18`…`cep95` / `ceps-all` | CEP route scopes | 404 |
+| `ceps-all` | CEP-18/78/85/95 route scopes | those CEPs absent |
+| `all` | same as package default (CEPs + all add-ons) | n/a (alias) |
 | `tx-return` | `submit=return` allowed (Transaction JSON) | `return` → 400 `feature_disabled` |
 | `sign-local` | `LOCAL_KEYS_JSON` keyring | no local signing |
 | `sign-kms` | KMS HTTP + `/v1/kms/*` | no KMS |
