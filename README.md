@@ -46,7 +46,7 @@ make verify-slices   # same feature slices as CI
 | `CEPS_SSE_URL`          | `http://127.0.0.1:18101/events`                                                                                                                                    |
 | `CEPS_CHAIN_NAME`       | `casper-net-1`                                                                                                                                                     |
 | `SIGN_BACKEND`          | unset, empty, or `none` → no put signer; `local` or `kms`                                                                                                          |
-| `LOCAL_KEYS_JSON`       | **Lab / NCTL / tests only.** Env JSON blob (not a file path): `public_key` → PEM. Load NCTL faucet/user PEMs for `SIGN_BACKEND=local`. Not a production key store. |
+| `LOCAL_KEYS_JSON`       | **Lab / NCTL users only.** Env JSON blob: `public_key` → PEM. Default export: user-1..3. Do not put the faucet here (faucet is for KMS funding). |
 | `KMS_URL`               | KMS peer when `SIGN_BACKEND=kms`                                                                                                                                   |
 | `CEPS_WASM_ROOT`        | Directory of contract `.wasm` files                                                                                                                                |
 | `RUST_LOG`              | tracing filter                                                                                                                                                     |
@@ -93,15 +93,15 @@ OpenAPI lists the paths compiled into this binary. Full route lists are easiest 
 | Mode  | How                                                                                                  |
 | ----- | ---------------------------------------------------------------------------------------------------- |
 | none  | `submit=return` (with `tx-return`) works; `submit=put` → `no_signer`                                 |
-| local | NCTL lab: PEMs in `LOCAL_KEYS_JSON`. Already funded on NCTL. No create/fund in this API.             |
-| kms   | Production-shaped: keys in KMS. Create on KMS; fund **before** use (see below). API only signs puts. |
+| local | NCTL lab: user PEMs in `LOCAL_KEYS_JSON` (faucet not used). Already funded. |
+| kms   | Keys in KMS. Create on KMS; fund from NCTL faucet before use. API only signs puts. |
 
 #### How signing modes are tested (same shape)
 
 | Mode      | Keys                                  | Fund                                                                                                     | Then                          |
 | --------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| **local** | NCTL faucet/users → `LOCAL_KEYS_JSON` | Already funded by NCTL                                                                                   | `SIGN_BACKEND=local`, CEP put |
-| **kms**   | Create on KMS HTTP                    | Fund those public keys from NCTL faucet **before** tests (`scripts/fund-kms-from-nctl.sh`; not this API) | `SIGN_BACKEND=kms`, CEP put   |
+| **local** | NCTL **users** (not faucet) → `LOCAL_KEYS_JSON` | Already funded by NCTL | `SIGN_BACKEND=local`, CEP put |
+| **kms**   | Create on KMS HTTP | Fund from NCTL **faucet** via `scripts/fund-kms-from-nctl.sh` | `SIGN_BACKEND=kms`, CEP put |
 
 CI always covers KMS **sign** via wiremock. Live KMS create+fund is a **pre-test** step (restarted empty KMS ⇒ recreate and refund).
 
@@ -121,9 +121,9 @@ They were early “platform demo” helpers (check CSPR balance after fund, fetc
 
 | Context                | Keys                                    | Funding                                                   |
 | ---------------------- | --------------------------------------- | --------------------------------------------------------- |
-| NCTL lab / local tests | `LOCAL_KEYS_JSON` (NCTL faucet + users) | Already funded by NCTL                                    |
-| KMS live / prod        | Create on KMS API                       | Out of band / pre-test from NCTL faucet to KMS public key |
-| This API               | Never create/list/fund over HTTP        | Never                                                     |
+| NCTL lab / local tests | `LOCAL_KEYS_JSON` from NCTL **users** (default 1 2 3) | Already funded by NCTL |
+| KMS live / prod        | Create on KMS API | Pre-test fund from NCTL **faucet** |
+| This API               | Never create/list/fund over HTTP | Never |
 
 ## Docker
 
@@ -172,9 +172,10 @@ After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `insta
 Ops scripts prepare env; assertions are Rust tests (not bash e2e).
 
 ```bash
-# Local: export funded NCTL faucet + users into LOCAL_KEYS_JSON, then:
-export LOCAL_KEYS_JSON="$(NCTL_CONTAINER=casper-nctl-2-docker-dev scripts/export-nctl-local-keys.sh)"
+# Local: NCTL users only (never faucet). Default user-1..3:
+export LOCAL_KEYS_JSON="$(NCTL_USERS='1 2 3' NCTL_CONTAINER=casper-nctl-2-docker-dev scripts/export-nctl-local-keys.sh)"
 SIGN_BACKEND=local cargo test -p ceps-rust-api --test live_local -- --nocapture
+# Covers CEP-18 put install → mint → transfer across three users. Not a full CEP method matrix yet.
 
 # KMS: createKey on KMS, fund with scripts/fund-kms-from-nctl.sh, then:
 # CEPS_KMS_PUBLIC_KEY=… SIGN_BACKEND=kms KMS_URL=… cargo test -p ceps-rust-api --test live_kms -- --nocapture
@@ -191,8 +192,8 @@ Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. 
 | `make verify-slices`                 | CI feature-slice builds                                            |
 | `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
 | `make docker-run` / `docker-run-kms` | Compose up                                                         |
-| `scripts/export-nctl-local-keys.sh`  | Ops: `LOCAL_KEYS_JSON` for NCTL faucet + users (local mode) |
-| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a KMS public key from NCTL faucet                 |
+| `scripts/export-nctl-local-keys.sh`  | Ops: `LOCAL_KEYS_JSON` from NCTL users (default 1 2 3; no faucet) |
+| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a KMS public key from NCTL faucet                       |
 | `make version-show`                  | Crate / image tag                                                  |
 
 ## License

@@ -155,7 +155,7 @@ jobs:
           chmod +x scripts/export-nctl-local-keys.sh scripts/fund-kms-from-nctl.sh
           {
             echo "LOCAL_KEYS_JSON<<EOF"
-            NCTL_CONTAINER=casper-nctl-2-docker-ci ./scripts/export-nctl-local-keys.sh
+            NCTL_CONTAINER=casper-nctl-2-docker-ci NCTL_USERS="1 2 3" ./scripts/export-nctl-local-keys.sh
             echo "EOF"
             echo "SIGN_BACKEND=local"
             echo "CEPS_RPC_URL=http://127.0.0.1:11101"

@@ -1,7 +1,7 @@
 //! Integration helpers for live tests against a reachable node.
 //!
-//! Prefer pre-funded NCTL keys via product `LOCAL_KEYS_JSON` (faucet + users).
-//! No faucet env, no native-transfer funding in this repo.
+//! Prefer pre-funded NCTL **user** keys via `LOCAL_KEYS_JSON` (never faucet).
+//! Faucet is for KMS funding only (`scripts/fund-kms-from-nctl.sh`).
 //! Product code under `crates/` must not import this module.
 
 use ceps_rust_api::config::{Config, SignBackend};
