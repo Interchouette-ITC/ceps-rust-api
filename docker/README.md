@@ -22,20 +22,28 @@ docker build -f docker/Dockerfile --build-arg FEATURES=ceps-all,swagger-ui -t in
 
 ## Where to pull images
 
-| Registry   | Image                         |
-| ---------- | ----------------------------- |
-| Docker Hub | `interchouette/ceps-rust-api` |
+| Registry      | Image                                                |
+| ------------- | ---------------------------------------------------- |
+| Docker Hub    | `interchouette/ceps-rust-api`                        |
+| Personal GHCR | `ghcr.io/groussac/ceps-rust-api` (Make/CI only)      |
+| Worker GHCR   | `ghcr.io/interchouette/ceps-rust-api` (Make/CI only) |
+| Org GHCR      | `ghcr.io/interchouette-itc/ceps-rust-api`            |
 
 ```bash
 docker pull interchouette/ceps-rust-api:latest
+docker pull interchouette/ceps-rust-api:dev
+# or org GHCR:
+docker pull ghcr.io/interchouette-itc/ceps-rust-api:dev
 ```
+
+Publish `:dev` with `make docker-build-dev` + `make docker-push-dev` (or CI workflow `docker-build-push-dev.yml`). Release tags via GitHub Release + `release.yml`.
 
 ## MCP sidecar image
 
-| Registry | Image |
-| --- | --- |
-| Docker Hub | `interchouette/ceps-rust-api-mcp` |
-| Org GHCR | `ghcr.io/interchouette-itc/ceps-rust-api-mcp` |
+| Registry   | Image                                         |
+| ---------- | --------------------------------------------- |
+| Docker Hub | `interchouette/ceps-rust-api-mcp`             |
+| Org GHCR   | `ghcr.io/interchouette-itc/ceps-rust-api-mcp` |
 
 ```bash
 docker pull interchouette/ceps-rust-api-mcp:1.0.0
@@ -48,13 +56,14 @@ See [docs/mcp.md](../docs/mcp.md) and [mcp/README.md](../mcp/README.md). Compose
 
 ## Tags
 
-| Tag                | Meaning                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
-| `:dev` / `:latest` | Rolling / published tag from `make docker-build` (`TAG`, `APP_VERSION`) |
-| `:X.Y.Z`           | Version from crate `Cargo.toml` when built with `make docker-build`     |
+| Tag                  | Meaning                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| `:dev`               | Rolling tip from `make docker-build-dev` / CI push on `dev` |
+| `:latest` / `:X.Y.Z` | Release tags from `make docker-build` + release push        |
 
 ```bash
 make version-show
+make docker-build-dev
 make docker-build
 ```
 

@@ -1,4 +1,4 @@
-name: Release - Build and Push MCP Image
+name: Release - Build and Push Versioned Images
 
 on:
   release:
@@ -6,6 +6,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FEATURES: ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
 
 jobs:
   validate:
@@ -19,13 +20,13 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
-      - name: Validate release tag matches mcp/Cargo.toml
+      - name: Validate release tag matches Cargo.toml
         id: extract
         run: |
           TAG="${{ github.event.release.tag_name }}"
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid tag format: $TAG"
-            echo "Expected: vX.Y.Z (e.g. v0.1.0)"
+            echo "Expected: vX.Y.Z (e.g. v1.0.0)"
             exit 1
           fi
           VERSION="${TAG#v}"
@@ -42,24 +43,45 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "OK: tag $TAG matches mcp and root $VERSION"
 
-  build-and-push-mcp:
-    name: Build and Push MCP Image
+  build-and-push:
+    name: Build and Push Images
     needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    defaults:
+      run:
+        working-directory: ceps-rust-api
     steps:
-      - name: Checkout code
+      - name: Checkout ceps-rust-api
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name }}
+          path: ceps-rust-api
+
+      - name: Checkout ceps-rust-ts-client
+        uses: actions/checkout@v4
+        with:
+          repository: Interchouette-ITC/ceps-rust-ts-client
+          path: ceps-rust-ts-client
+          ref: dev
+
+      - name: Checkout casper-rust-wasm-sdk
+        uses: actions/checkout@v4
+        with:
+          repository: casper-ecosystem/casper-rust-wasm-sdk
+          path: rustSDK
+          ref: dev
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Set up Make
         run: sudo apt-get install -y make
+
+      - name: Build API Docker image
+        run: make docker-build TAG=latest APP_VERSION=${{ needs.validate.outputs.version }} FEATURES=${{ env.FEATURES }}
 
       - name: Build MCP Docker image
         run: make mcp-docker-build TAG=latest MCP_VERSION=${{ needs.validate.outputs.version }}
@@ -69,6 +91,9 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push API :version and :latest to Docker Hub
+        run: make docker-push-release-hub APP_VERSION=${{ needs.validate.outputs.version }}
 
       - name: Push MCP :version and :latest to Docker Hub
         run: make mcp-docker-push-release-hub MCP_VERSION=${{ needs.validate.outputs.version }}
@@ -80,6 +105,9 @@ jobs:
           username: ${{ secrets.GHCR_USERNAME }}
           password: ${{ secrets.GHCR_PAT }}
 
+      - name: Push API to personal GHCR
+        run: make docker-push-release-ghcr-personal APP_VERSION=${{ needs.validate.outputs.version }}
+
       - name: Push MCP to personal GHCR
         run: make mcp-docker-push-release-ghcr-personal MCP_VERSION=${{ needs.validate.outputs.version }}
 
@@ -89,6 +117,9 @@ jobs:
           registry: ghcr.io
           username: ${{ secrets.GHCR_USERNAME_ITC }}
           password: ${{ secrets.GHCR_PAT_ITC }}
+
+      - name: Push API to ghcr.io/interchouette and interchouette-itc
+        run: make docker-push-release-ghcr-itc APP_VERSION=${{ needs.validate.outputs.version }}
 
       - name: Push MCP to ghcr.io/interchouette and interchouette-itc
         run: make mcp-docker-push-release-ghcr-itc MCP_VERSION=${{ needs.validate.outputs.version }}
