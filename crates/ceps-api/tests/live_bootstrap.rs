@@ -13,23 +13,10 @@ async fn make_only_cep18_install_tolerates_offline() {
     )))
     .await;
     let initiator = format!("01{}", "11".repeat(32));
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/cep18/install")
-            .set_json(serde_json::json!({
-                "submit": "return",
-                "signer": {"public_key": initiator},
-                "payment_amount": "500000000000",
-                "name": "SoftTok",
-                "symbol": "STK",
-                "decimals": 9,
-                "total_supply": "1000000000000",
-                "wasm": "cep18"
-            }))
-            .to_request(),
-    )
-    .await;
+    let uri = format!(
+        "/v1/cep18/install?submit=return&signer={initiator}&payment_amount=500000000000&name=SoftTok&symbol=STK&decimals=9&total_supply=1000000000000&wasm=cep18"
+    );
+    let resp = test::call_service(&app, test::TestRequest::post().uri(&uri).to_request()).await;
     let status = resp.status();
     let body = test::read_body(resp).await;
     assert!(

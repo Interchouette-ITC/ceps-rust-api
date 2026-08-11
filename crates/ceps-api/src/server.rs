@@ -319,32 +319,33 @@ mod tests {
             .is_none());
         #[cfg(feature = "cep18")]
         {
-            let install = &body["paths"]["/v1/cep18/install"]["post"];
+            let approve = &body["paths"]["/v1/cep18/approve"]["post"];
+            let params = approve
+                .get("parameters")
+                .and_then(|p| p.as_array())
+                .cloned()
+                .unwrap_or_default();
             assert!(
-                install["requestBody"]["content"]["application/json"]["example"]["name"]
-                    .as_str()
-                    .is_some(),
-                "cep18 install must ship a requestBody example"
+                !params.is_empty(),
+                "cep18 approve must expose query parameters"
+            );
+            assert!(
+                approve.get("requestBody").is_none() || approve["requestBody"]["required"] == false,
+                "cep18 approve must not require a JSON body"
             );
             let schemas = &body["components"]["schemas"];
             assert!(
-                schemas.get("InstallBody").is_some()
-                    || schemas.get("cep18.InstallBody").is_some()
+                schemas.get("MutateQuery").is_some()
                     || schemas
                         .as_object()
-                        .map(|m| m.keys().any(|k| k.contains("InstallBody")))
-                        .unwrap_or(false)
+                        .map(|m| m.keys().any(|k| k.contains("MutateQuery")))
+                        .unwrap_or(false),
+                "MutateQuery schema must be published"
             );
             assert!(
                 schemas.get("MutateEnvelope").is_some(),
                 "MutateEnvelope schema must be published"
             );
-            let env = &schemas["MutateEnvelope"];
-            let props = env
-                .get("properties")
-                .or_else(|| env.get("allOf"))
-                .or_else(|| env.pointer("/properties"));
-            assert!(props.is_some() || env.get("example").is_some() || !env.is_null());
         }
     }
 
@@ -369,15 +370,7 @@ mod tests {
     async fn put_transfer_without_signer_is_no_signer() {
         let app = test::init_service(create_app(AppState::new(Config::default()))).await;
         let req = test::TestRequest::post()
-            .uri("/v1/cep18/transfer")
-            .set_json(serde_json::json!({
-                "submit": "put",
-                "signer": {"public_key": "01aa"},
-                "payment_amount": "1",
-                "contract_hash": "aa",
-                "recipient": "account-hash-bb",
-                "amount": "1"
-            }))
+            .uri("/v1/cep18/transfer?submit=put&signer=01aa&payment_amount=1&contract_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&recipient=account-hash-bb&amount=1")
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
@@ -390,17 +383,10 @@ mod tests {
     async fn return_transfer_make_only_ok() {
         let app = test::init_service(create_app(AppState::new(Config::default()))).await;
         let initiator = format!("01{}", "11".repeat(32));
-        let req = test::TestRequest::post()
-            .uri("/v1/cep18/transfer")
-            .set_json(serde_json::json!({
-                "submit": "return",
-                "signer": {"public_key": initiator},
-                "payment_amount": "1000000000",
-                "contract_hash": "cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d",
-                "recipient": "account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f",
-                "amount": "1"
-            }))
-            .to_request();
+        let uri = format!(
+            "/v1/cep18/transfer?submit=return&signer={initiator}&payment_amount=1000000000&contract_hash=cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d&recipient=account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f&amount=1"
+        );
+        let req = test::TestRequest::post().uri(&uri).to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success(), "status {}", resp.status());
         let body: serde_json::Value = test::read_body_json(resp).await;

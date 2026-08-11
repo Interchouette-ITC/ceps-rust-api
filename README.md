@@ -210,9 +210,7 @@ Compose file: [`docker/docker-compose.yml`](docker/docker-compose.yml).
 ```bash
 make run
 
-curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
-  -H 'content-type: application/json' \
-  -d '{"submit":"return","signer":{"public_key":"<your-public-key>"},"payment_amount":"500000000000","name":"Demo","symbol":"DMO","decimals":9,"total_supply":"1000000000000","wasm":"cep18"}'
+curl -sS -X POST 'http://127.0.0.1:8080/v1/cep18/install?submit=return&signer=<your-public-key>&payment_amount=500000000000&name=Demo&symbol=DMO&decimals=9&total_supply=1000000000000&wasm=cep18'
 ```
 
 ### NCTL lab local keys → put
@@ -220,9 +218,7 @@ curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
 ```bash
 make run-local
 
-curl -sS -X POST http://127.0.0.1:8080/v1/cep18/install \
-  -H 'content-type: application/json' \
-  -d '{"submit":"put","signer":{"public_key":"<nctl-user>"},"payment_amount":"500000000000","name":"Demo","symbol":"DMO","decimals":9,"total_supply":"1000000000000","wasm":"cep18"}'
+curl -sS -X POST 'http://127.0.0.1:8080/v1/cep18/install?submit=put&signer=<nctl-user>&payment_amount=500000000000&name=Demo&symbol=DMO&decimals=9&total_supply=1000000000000&wasm=cep18'
 ```
 
 ### KMS put signing (private network)
@@ -233,10 +229,10 @@ Pre-test / ops (outside this API): create on KMS (`BLOCKCHAIN_MODE=casper`), fun
 scripts/fund-kms-from-nctl.sh <createKey-address>
 
 SIGN_BACKEND=kms KMS_URL=http://127.0.0.1:4000 make run
-# CEP submit=put with signer.public_key = that same address
+# CEP submit=put with query param signer=<that same address>
 ```
 
-After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with `installer_public_key` and `package_hash_key_name` (returns contract/package hashes).
+After a CEP-95 Odra install, call `POST /v1/cep95/bind-odra-install` with query params `installer_public_key` and `package_hash_key_name` (returns contract/package hashes).
 
 ### Live harness (Rust integration)
 

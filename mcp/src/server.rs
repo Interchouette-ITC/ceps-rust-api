@@ -104,292 +104,292 @@ impl CepsApiMcp {
         ToolOutput::text(client::openapi().await)
     }
 
-    #[tool(description = "POST CEP-18 install — JSON body")]
+    #[tool(description = "POST CEP-18 install - query params as JSON object")]
     async fn ceps_api_cep18_install(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_install(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 upgrade — JSON body")]
+    #[tool(description = "POST CEP-18 upgrade - query params as JSON object")]
     async fn ceps_api_cep18_upgrade(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_upgrade(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 transfer — JSON body")]
+    #[tool(description = "POST CEP-18 transfer - query params as JSON object")]
     async fn ceps_api_cep18_transfer(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_transfer(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 transfer-from — JSON body")]
+    #[tool(description = "POST CEP-18 transfer-from - query params as JSON object")]
     async fn ceps_api_cep18_transfer_from(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_transfer_from(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 approve — JSON body")]
+    #[tool(description = "POST CEP-18 approve - query params as JSON object")]
     async fn ceps_api_cep18_approve(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_approve(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 increase-allowance — JSON body")]
+    #[tool(description = "POST CEP-18 increase-allowance - query params as JSON object")]
     async fn ceps_api_cep18_increase_allowance(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_increase_allowance(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 decrease-allowance — JSON body")]
+    #[tool(description = "POST CEP-18 decrease-allowance - query params as JSON object")]
     async fn ceps_api_cep18_decrease_allowance(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_decrease_allowance(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 mint — JSON body")]
+    #[tool(description = "POST CEP-18 mint - query params as JSON object")]
     async fn ceps_api_cep18_mint(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_mint(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 burn — JSON body")]
+    #[tool(description = "POST CEP-18 burn - query params as JSON object")]
     async fn ceps_api_cep18_burn(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_burn(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 change-events-mode — JSON body")]
+    #[tool(description = "POST CEP-18 change-events-mode - query params as JSON object")]
     async fn ceps_api_cep18_change_events_mode(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_change_events_mode(&body).await)
     }
 
-    #[tool(description = "POST CEP-18 change-security — JSON body")]
+    #[tool(description = "POST CEP-18 change-security - query params as JSON object")]
     async fn ceps_api_cep18_change_security(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep18_change_security(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 install — JSON body")]
+    #[tool(description = "POST CEP-78 install - query params as JSON object")]
     async fn ceps_api_cep78_install(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_install(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 upgrade — JSON body")]
+    #[tool(description = "POST CEP-78 upgrade - query params as JSON object")]
     async fn ceps_api_cep78_upgrade(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_upgrade(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 mint — JSON body")]
+    #[tool(description = "POST CEP-78 mint - query params as JSON object")]
     async fn ceps_api_cep78_mint(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_mint(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 transfer — JSON body")]
+    #[tool(description = "POST CEP-78 transfer - query params as JSON object")]
     async fn ceps_api_cep78_transfer(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_transfer(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 burn — JSON body")]
+    #[tool(description = "POST CEP-78 burn - query params as JSON object")]
     async fn ceps_api_cep78_burn(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_burn(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 register-owner — JSON body")]
+    #[tool(description = "POST CEP-78 register-owner - query params as JSON object")]
     async fn ceps_api_cep78_register_owner(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_register_owner(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 approve — JSON body")]
+    #[tool(description = "POST CEP-78 approve - query params as JSON object")]
     async fn ceps_api_cep78_approve(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_approve(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 revoke — JSON body")]
+    #[tool(description = "POST CEP-78 revoke - query params as JSON object")]
     async fn ceps_api_cep78_revoke(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_revoke(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 set-approval-for-all — JSON body")]
+    #[tool(description = "POST CEP-78 set-approval-for-all - query params as JSON object")]
     async fn ceps_api_cep78_set_approval_for_all(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_set_approval_for_all(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 set-token-metadata — JSON body")]
+    #[tool(description = "POST CEP-78 set-token-metadata - query params as JSON object")]
     async fn ceps_api_cep78_set_token_metadata(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_set_token_metadata(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 set-variables — JSON body")]
+    #[tool(description = "POST CEP-78 set-variables - query params as JSON object")]
     async fn ceps_api_cep78_set_variables(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_set_variables(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 mint-session — JSON body")]
+    #[tool(description = "POST CEP-78 mint-session - query params as JSON object")]
     async fn ceps_api_cep78_mint_session(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_mint_session(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 transfer-session — JSON body")]
+    #[tool(description = "POST CEP-78 transfer-session - query params as JSON object")]
     async fn ceps_api_cep78_transfer_session(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_transfer_session(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 updated-receipts — JSON body")]
+    #[tool(description = "POST CEP-78 updated-receipts - query params as JSON object")]
     async fn ceps_api_cep78_updated_receipts(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_updated_receipts(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 owner-of-session - JSON body")]
+    #[tool(description = "POST CEP-78 owner-of-session - query params as JSON object")]
     async fn ceps_api_cep78_owner_of_session(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_owner_of_session(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 balance-of-session - JSON body")]
+    #[tool(description = "POST CEP-78 balance-of-session - query params as JSON object")]
     async fn ceps_api_cep78_balance_of_session(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_balance_of_session(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 get-approved-session - JSON body")]
+    #[tool(description = "POST CEP-78 get-approved-session - query params as JSON object")]
     async fn ceps_api_cep78_get_approved_session(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_get_approved_session(&body).await)
     }
 
-    #[tool(description = "POST CEP-78 is-approved-for-all-session - JSON body")]
+    #[tool(description = "POST CEP-78 is-approved-for-all-session - query params as JSON object")]
     async fn ceps_api_cep78_is_approved_for_all_session(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep78_is_approved_for_all_session(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 install — JSON body")]
+    #[tool(description = "POST CEP-85 install - query params as JSON object")]
     async fn ceps_api_cep85_install(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_install(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 upgrade — JSON body")]
+    #[tool(description = "POST CEP-85 upgrade - query params as JSON object")]
     async fn ceps_api_cep85_upgrade(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_upgrade(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 mint — JSON body")]
+    #[tool(description = "POST CEP-85 mint - query params as JSON object")]
     async fn ceps_api_cep85_mint(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_mint(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 batch-mint — JSON body")]
+    #[tool(description = "POST CEP-85 batch-mint - query params as JSON object")]
     async fn ceps_api_cep85_batch_mint(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_batch_mint(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 transfer — JSON body")]
+    #[tool(description = "POST CEP-85 transfer - query params as JSON object")]
     async fn ceps_api_cep85_transfer(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_transfer(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 batch-transfer — JSON body")]
+    #[tool(description = "POST CEP-85 batch-transfer - query params as JSON object")]
     async fn ceps_api_cep85_batch_transfer(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_batch_transfer(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 burn — JSON body")]
+    #[tool(description = "POST CEP-85 burn - query params as JSON object")]
     async fn ceps_api_cep85_burn(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_burn(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 batch-burn — JSON body")]
+    #[tool(description = "POST CEP-85 batch-burn - query params as JSON object")]
     async fn ceps_api_cep85_batch_burn(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_batch_burn(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 set-approval-for-all — JSON body")]
+    #[tool(description = "POST CEP-85 set-approval-for-all - query params as JSON object")]
     async fn ceps_api_cep85_set_approval_for_all(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_set_approval_for_all(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 set-uri — JSON body")]
+    #[tool(description = "POST CEP-85 set-uri - query params as JSON object")]
     async fn ceps_api_cep85_set_uri(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_set_uri(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 set-total-supply-of — JSON body")]
+    #[tool(description = "POST CEP-85 set-total-supply-of - query params as JSON object")]
     async fn ceps_api_cep85_set_total_supply_of(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_set_total_supply_of(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 set-total-supply-of-batch — JSON body")]
+    #[tool(description = "POST CEP-85 set-total-supply-of-batch - query params as JSON object")]
     async fn ceps_api_cep85_set_total_supply_of_batch(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_set_total_supply_of_batch(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 change-security — JSON body")]
+    #[tool(description = "POST CEP-85 change-security - query params as JSON object")]
     async fn ceps_api_cep85_change_security(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_change_security(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 set-modalities — JSON body")]
+    #[tool(description = "POST CEP-85 set-modalities - query params as JSON object")]
     async fn ceps_api_cep85_set_modalities(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_set_modalities(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 balance-of-batch - JSON body")]
+    #[tool(description = "POST CEP-85 balance-of-batch - query params as JSON object")]
     async fn ceps_api_cep85_balance_of_batch(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_balance_of_batch(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 supply-of-batch - JSON body")]
+    #[tool(description = "POST CEP-85 supply-of-batch - query params as JSON object")]
     async fn ceps_api_cep85_supply_of_batch(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_supply_of_batch(&body).await)
     }
 
-    #[tool(description = "POST CEP-85 total-supply-of-batch - JSON body")]
+    #[tool(description = "POST CEP-85 total-supply-of-batch - query params as JSON object")]
     async fn ceps_api_cep85_total_supply_of_batch(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_total_supply_of_batch(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 install — JSON body")]
+    #[tool(description = "POST CEP-95 install - query params as JSON object")]
     async fn ceps_api_cep95_install(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_install(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 transfer-from — JSON body")]
+    #[tool(description = "POST CEP-95 transfer-from - query params as JSON object")]
     async fn ceps_api_cep95_transfer_from(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_transfer_from(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 safe-transfer-from — JSON body")]
+    #[tool(description = "POST CEP-95 safe-transfer-from - query params as JSON object")]
     async fn ceps_api_cep95_safe_transfer_from(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_safe_transfer_from(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 approve — JSON body")]
+    #[tool(description = "POST CEP-95 approve - query params as JSON object")]
     async fn ceps_api_cep95_approve(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_approve(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 revoke-approval — JSON body")]
+    #[tool(description = "POST CEP-95 revoke-approval - query params as JSON object")]
     async fn ceps_api_cep95_revoke_approval(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_revoke_approval(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 approve-for-all — JSON body")]
+    #[tool(description = "POST CEP-95 approve-for-all - query params as JSON object")]
     async fn ceps_api_cep95_approve_for_all(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_approve_for_all(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 revoke-approval-for-all — JSON body")]
+    #[tool(description = "POST CEP-95 revoke-approval-for-all - query params as JSON object")]
     async fn ceps_api_cep95_revoke_approval_for_all(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_revoke_approval_for_all(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 mint — JSON body")]
+    #[tool(description = "POST CEP-95 mint - query params as JSON object")]
     async fn ceps_api_cep95_mint(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_mint(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 burn — JSON body")]
+    #[tool(description = "POST CEP-95 burn - query params as JSON object")]
     async fn ceps_api_cep95_burn(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_burn(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 transfer-ownership - JSON body")]
+    #[tool(description = "POST CEP-95 transfer-ownership - query params as JSON object")]
     async fn ceps_api_cep95_transfer_ownership(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_transfer_ownership(&body).await)
     }
 
-    #[tool(description = "POST CEP-95 bind-odra-install — JSON body")]
+    #[tool(description = "POST CEP-95 bind-odra-install - query params as JSON object")]
     async fn ceps_api_cep95_bind_odra_install(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_bind_odra_install(&body).await)
     }
 
-    #[tool(description = "POST /v1/chain/put-transaction — JSON body")]
+    #[tool(description = "POST /v1/chain/put-transaction - query params as JSON object")]
     async fn ceps_api_put_transaction(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::put_transaction(&body).await)
     }

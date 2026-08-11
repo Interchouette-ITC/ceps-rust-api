@@ -41,15 +41,7 @@ async fn put_requires_signer() {
     let resp = test::call_service(
         &app,
         test::TestRequest::post()
-            .uri("/v1/cep18/transfer")
-            .set_json(serde_json::json!({
-                "submit": "put",
-                "signer": {"public_key": "01aa"},
-                "payment_amount": "1",
-                "contract_hash": "cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d",
-                "recipient": "account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f",
-                "amount": "1"
-            }))
+            .uri("/v1/cep18/transfer?submit=put&signer=01aa&payment_amount=1&contract_hash=cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d&recipient=account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f&amount=1")
             .to_request(),
     )
     .await;
@@ -63,21 +55,10 @@ async fn put_requires_signer() {
 async fn submit_return_make_only_transfer() {
     let app = test::init_service(create_app(app_none())).await;
     let initiator = format!("01{}", "11".repeat(32));
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/cep18/transfer")
-            .set_json(serde_json::json!({
-                "submit": "return",
-                "signer": {"public_key": initiator},
-                "payment_amount": "1000000000",
-                "contract_hash": "cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d",
-                "recipient": "account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f",
-                "amount": "1"
-            }))
-            .to_request(),
-    )
-    .await;
+    let uri = format!(
+        "/v1/cep18/transfer?submit=return&signer={initiator}&payment_amount=1000000000&contract_hash=cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d&recipient=account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f&amount=1"
+    );
+    let resp = test::call_service(&app, test::TestRequest::post().uri(&uri).to_request()).await;
     let status = resp.status();
     let body_bytes = test::read_body(resp).await;
     assert!(
@@ -120,15 +101,7 @@ async fn local_put_missing_key_is_no_signer() {
     let resp = test::call_service(
         &app,
         test::TestRequest::post()
-            .uri("/v1/cep18/transfer")
-            .set_json(serde_json::json!({
-                "submit": "put",
-                "signer": {"public_key": "01dead"},
-                "payment_amount": "1",
-                "contract_hash": "cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d",
-                "recipient": "account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f",
-                "amount": "1"
-            }))
+            .uri("/v1/cep18/transfer?submit=put&signer=01dead&payment_amount=1&contract_hash=cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d&recipient=account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f&amount=1")
             .to_request(),
     )
     .await;
@@ -198,21 +171,10 @@ async fn chain_put_absent_when_feature_off() {
 async fn submit_return_feature_disabled() {
     let app = test::init_service(create_app(app_none())).await;
     let initiator = format!("01{}", "11".repeat(32));
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/cep18/transfer")
-            .set_json(serde_json::json!({
-                "submit": "return",
-                "signer": {"public_key": initiator},
-                "payment_amount": "1",
-                "contract_hash": "cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d",
-                "recipient": "account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f",
-                "amount": "1"
-            }))
-            .to_request(),
-    )
-    .await;
+    let uri = format!(
+        "/v1/cep18/transfer?submit=return&signer={initiator}&payment_amount=1&contract_hash=cfa781f5eb69c3eee952c2944ce9670a049f88c5e46b83fb5881ebe13fb98e6d&recipient=account-hash-b485c074cef7ccaccd0302949d2043ab7133abdb14cfa87e8392945c0bd80a5f&amount=1"
+    );
+    let resp = test::call_service(&app, test::TestRequest::post().uri(&uri).to_request()).await;
     assert_eq!(resp.status(), 400);
     let body: serde_json::Value = test::read_body_json(resp).await;
     assert_eq!(body["code"], "feature_disabled");

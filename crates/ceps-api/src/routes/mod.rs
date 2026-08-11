@@ -15,5 +15,6 @@ pub mod cep85;
 #[cfg(feature = "cep95")]
 pub mod cep95;
 
+pub use extractors::{ContractQuery, MutateQuery};
 pub use health::health_handler;
 pub use hello::hello_handler;
