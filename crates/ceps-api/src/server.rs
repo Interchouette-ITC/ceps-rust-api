@@ -301,8 +301,17 @@ mod tests {
             assert!(body["paths"].get("/v1/cep95/mint").is_some());
         }
         let n = body["paths"].as_object().map(|m| m.len()).unwrap_or(0);
-        // hello + health + chain + full CEP surface (well above the old sample set).
-        assert!(n >= 90, "expected full OpenAPI path catalog, got {n} paths");
+        // Path count depends on enabled features (CI verify-slices runs thin combos).
+        let expected = 2usize // / + /health
+            + usize::from(cfg!(feature = "chain-put"))
+            + if cfg!(feature = "cep18") { 20 } else { 0 }
+            + if cfg!(feature = "cep78") { 44 } else { 0 }
+            + if cfg!(feature = "cep85") { 32 } else { 0 }
+            + if cfg!(feature = "cep95") { 20 } else { 0 };
+        assert_eq!(
+            n, expected,
+            "OpenAPI path count must match enabled features (got {n}, expected {expected})"
+        );
         assert!(body["paths"].get("/v1/instances/{id}").is_none());
         assert!(body["paths"].get("/v1/wasm").is_none());
         assert!(body["paths"]
