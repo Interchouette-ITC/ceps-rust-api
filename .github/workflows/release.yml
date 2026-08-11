@@ -1,0 +1,94 @@
+name: Release - Build and Push MCP Image
+
+on:
+  release:
+    types: [created]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate:
+    name: Validate Tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Validate release tag matches mcp/Cargo.toml
+        id: extract
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format: $TAG"
+            echo "Expected: vX.Y.Z (e.g. v0.1.0)"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          MCP_VERSION="$(awk '/^version = /{gsub(/"/, "", $3); print $3; exit}' mcp/Cargo.toml)"
+          ROOT_VERSION="$(awk '/^version = /{gsub(/"/, "", $3); print $3; exit}' Cargo.toml)"
+          if [ "$VERSION" != "$MCP_VERSION" ]; then
+            echo "Release tag version ($VERSION) does not match mcp/Cargo.toml ($MCP_VERSION)"
+            exit 1
+          fi
+          if [ "$VERSION" != "$ROOT_VERSION" ]; then
+            echo "Release tag version ($VERSION) does not match root Cargo.toml ($ROOT_VERSION)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "OK: tag $TAG matches mcp and root $VERSION"
+
+  build-and-push-mcp:
+    name: Build and Push MCP Image
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set up Make
+        run: sudo apt-get install -y make
+
+      - name: Build MCP Docker image
+        run: make mcp-docker-build TAG=latest MCP_VERSION=${{ needs.validate.outputs.version }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push MCP :version and :latest to Docker Hub
+        run: make mcp-docker-push-release-hub MCP_VERSION=${{ needs.validate.outputs.version }}
+
+      - name: Log in to GHCR (personal)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Push MCP to personal GHCR
+        run: make mcp-docker-push-release-ghcr-personal MCP_VERSION=${{ needs.validate.outputs.version }}
+
+      - name: Log in to GHCR (Interchouette / ITC)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME_ITC }}
+          password: ${{ secrets.GHCR_PAT_ITC }}
+
+      - name: Push MCP to ghcr.io/interchouette and interchouette-itc
+        run: make mcp-docker-push-release-ghcr-itc MCP_VERSION=${{ needs.validate.outputs.version }}

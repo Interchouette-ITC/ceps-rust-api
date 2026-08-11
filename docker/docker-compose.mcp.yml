@@ -1,0 +1,27 @@
+# Slim MCP sidecar (Streamable HTTP on :4790).
+# Use: make mcp-http / make mcp-http-stop
+#
+# Host-started only (make). MCP lifecycle tools never call this file.
+# CEPS_HOST_ROOT must be the absolute host clone path - never /workspace.
+services:
+  ceps-api-mcp:
+    image: ${CEPS_API_MCP_IMAGE:-ceps-rust-api-mcp:0.1.0}
+    container_name: ceps-rust-api-mcp
+    build:
+      context: ../mcp
+      dockerfile: Dockerfile
+    ports:
+      - "4790:4790"
+    volumes:
+      - ${CEPS_HOST_ROOT:-${PWD}}:/workspace:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      CEPS_API_ROOT: /workspace
+      CEPS_HOST_ROOT: ${CEPS_HOST_ROOT:-${PWD}}
+      CEPS_API_URL: ${CEPS_API_URL:-http://host.docker.internal:8080}
+      MCP_HTTP: "true"
+      CEPS_API_MCP_ADDR: "0.0.0.0:4790"
+      DOCKER_HOST: unix:///var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    working_dir: /workspace

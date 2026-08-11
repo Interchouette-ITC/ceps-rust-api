@@ -30,6 +30,21 @@ docker build -f docker/Dockerfile --build-arg FEATURES=ceps-all,swagger-ui -t in
 docker pull interchouette/ceps-rust-api:latest
 ```
 
+## MCP sidecar image
+
+| Registry | Image |
+| --- | --- |
+| Docker Hub | `interchouette/ceps-rust-api-mcp` |
+| Org GHCR | `ghcr.io/interchouette-itc/ceps-rust-api-mcp` |
+
+```bash
+docker pull interchouette/ceps-rust-api-mcp:dev
+make mcp-http        # :4790 → http://127.0.0.1:4790/mcp
+make mcp-http-stop
+```
+
+See [docs/mcp.md](../docs/mcp.md) and [mcp/README.md](../mcp/README.md). Compose file: [`docker-compose.mcp.yml`](docker-compose.mcp.yml).
+
 ## Tags
 
 | Tag                | Meaning                                                                 |

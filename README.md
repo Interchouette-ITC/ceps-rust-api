@@ -49,6 +49,17 @@ make run
 
 Default node settings match local NCTL: RPC `http://127.0.0.1:11101`, SSE `http://127.0.0.1:18101/events`, chain `casper-net-1`.
 
+## MCP
+
+Sidecar MCP for agents (Make/Docker lifecycle + HTTP wrappers for every API route). Tools use the `ceps_api_*` prefix. Details: [docs/mcp.md](docs/mcp.md), [mcp/README.md](mcp/README.md).
+
+```bash
+docker pull interchouette/ceps-rust-api-mcp:dev
+# or org GHCR:
+docker pull ghcr.io/interchouette-itc/ceps-rust-api-mcp:dev
+make mcp-http   # Streamable HTTP on :4790 → http://127.0.0.1:4790/mcp
+```
+
 ```bash
 env -u CARGO_TARGET_DIR -u PLAYWRIGHT_BROWSERS_PATH make build
 make verify-slices   # same feature slices as CI
