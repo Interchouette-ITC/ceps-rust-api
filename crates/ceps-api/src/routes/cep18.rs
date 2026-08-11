@@ -461,3 +461,30 @@ pub async fn cep18_allowances(
         "allowance": client.allowances(&owner, &spender).await.map_err(ApiError::from_cep)?
     })))
 }
+
+#[utoipa::path(
+    get,
+    path = "/v1/cep18/{contract_hash}/security-badge/{account}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("account" = String, Path, description = "Account or entity key")
+    ),
+    responses((status = 200, description = "Security badge name if present")),
+    tag = "CEP-18"
+)]
+#[get("/v1/cep18/{contract_hash}/security-badge/{account}")]
+pub async fn cep18_security_badge(
+    state: web::Data<AppState>,
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, ApiError> {
+    let (contract_hash, account) = path.into_inner();
+    let client = bound_client(&state, &contract_hash, None)?;
+    let badge = client
+        .security_badge(&account)
+        .await
+        .map_err(ApiError::from_cep)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "badge": badge.map(|b| b.as_str()),
+        "badge_u8": badge.map(|b| b as u8),
+    })))
+}

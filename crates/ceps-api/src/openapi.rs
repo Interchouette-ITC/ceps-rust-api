@@ -49,6 +49,7 @@ struct ApiDocChainPut;
         crate::routes::cep18::cep18_install,
         crate::routes::cep18::cep18_transfer,
         crate::routes::cep18::cep18_balance_of,
+        crate::routes::cep18::cep18_security_badge,
     ),
     components(schemas(
         crate::routes::cep18::InstallBody,
@@ -81,11 +82,13 @@ struct ApiDocCep78;
         crate::routes::cep85::cep85_install,
         crate::routes::cep85::cep85_mint,
         crate::routes::cep85::cep85_balance_of,
+        crate::routes::cep85::cep85_balance_of_batch,
     ),
     components(schemas(
         crate::routes::cep85::InstallBody,
         crate::routes::cep85::MintBody,
         crate::routes::cep85::ContractRef,
+        crate::routes::cep85::BatchAccountsIdsBody,
     ))
 )]
 struct ApiDocCep85;
@@ -98,11 +101,14 @@ struct ApiDocCep85;
         crate::routes::cep95::cep95_transfer_from,
         crate::routes::cep95::cep95_bind_odra_install,
         crate::routes::cep95::cep95_owner_of,
+        crate::routes::cep95::cep95_get_owner,
+        crate::routes::cep95::cep95_transfer_ownership,
     ),
     components(schemas(
         crate::routes::cep95::InstallBody,
         crate::routes::cep95::TransferBody,
         crate::routes::cep95::BindOdraInstallBody,
+        crate::routes::cep95::TransferOwnershipBody,
         crate::routes::cep95::ContractRef,
     ))
 )]

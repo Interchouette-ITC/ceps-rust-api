@@ -119,14 +119,16 @@ CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` 
 
 `signer.public_key` is always the **account / initiator** (Casper public-key hex). You pass the public keys your services operate.
 
-| Area   | Examples                                                                           |
-| ------ | ---------------------------------------------------------------------------------- |
-| CEP-18 | `/v1/cep18/install`, `transfer`, `mint`, `…/{hash}/balance-of/{owner}`             |
-| CEP-78 | `/v1/cep78/install`, `mint`, `transfer`, `…/owner-of/{token}`                      |
-| CEP-85 | `/v1/cep85/install`, `mint`, `transfer`, `…/balance-of/{owner}/{id}`               |
-| CEP-95 | `/v1/cep95/install`, `transfer-from`, `bind-odra-install`, `…/owner-of/{token_id}` |
+This API mirrors **`ceps-client`** feature methods for CEP-18 / 78 / 85 / 95 (except CEP-78 `migrate`, which the client does not expose). Approximate route counts with default `ceps-all`:
 
-OpenAPI lists the paths compiled into this binary. Full route lists are easiest in `/docs/`.
+| Area | Routes (order of magnitude) | Notes |
+| ---- | ---------------------------: | ----- |
+| CEP-18 | ~20 | Includes `security-badge` |
+| CEP-78 | ~40+ | Mode GETs + session query helpers |
+| CEP-85 | ~30+ | Batch queries, modalities, transfer `data` / mint `uri` |
+| CEP-95 | ~20 | Includes Ownable `get-owner` / `transfer-ownership` |
+
+Full path list for this binary: **`/docs/`** (OpenAPI). Account named-key lookup stays on **`ceps-client`** (install/bootstrap helper), not as an HTTP platform route.
 
 ### Signing backends
 

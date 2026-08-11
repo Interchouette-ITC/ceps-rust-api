@@ -82,8 +82,7 @@ async fn http_initialize_and_tools_list() {
                 .to_string();
             let body: Value = resp.json().await.expect("init json");
             assert_eq!(
-                body["result"]["serverInfo"]["name"],
-                "ceps-rust-api",
+                body["result"]["serverInfo"]["name"], "ceps-rust-api",
                 "{body}"
             );
             assert_eq!(

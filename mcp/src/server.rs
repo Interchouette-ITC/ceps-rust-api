@@ -229,6 +229,26 @@ impl CepsApiMcp {
         ToolOutput::text(client::cep78_updated_receipts(&body).await)
     }
 
+    #[tool(description = "POST CEP-78 owner-of-session - JSON body")]
+    async fn ceps_api_cep78_owner_of_session(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_owner_of_session(&body).await)
+    }
+
+    #[tool(description = "POST CEP-78 balance-of-session - JSON body")]
+    async fn ceps_api_cep78_balance_of_session(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_balance_of_session(&body).await)
+    }
+
+    #[tool(description = "POST CEP-78 get-approved-session - JSON body")]
+    async fn ceps_api_cep78_get_approved_session(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_get_approved_session(&body).await)
+    }
+
+    #[tool(description = "POST CEP-78 is-approved-for-all-session - JSON body")]
+    async fn ceps_api_cep78_is_approved_for_all_session(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_is_approved_for_all_session(&body).await)
+    }
+
     #[tool(description = "POST CEP-85 install — JSON body")]
     async fn ceps_api_cep85_install(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep85_install(&body).await)
@@ -299,6 +319,21 @@ impl CepsApiMcp {
         ToolOutput::text(client::cep85_set_modalities(&body).await)
     }
 
+    #[tool(description = "POST CEP-85 balance-of-batch - JSON body")]
+    async fn ceps_api_cep85_balance_of_batch(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_balance_of_batch(&body).await)
+    }
+
+    #[tool(description = "POST CEP-85 supply-of-batch - JSON body")]
+    async fn ceps_api_cep85_supply_of_batch(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_supply_of_batch(&body).await)
+    }
+
+    #[tool(description = "POST CEP-85 total-supply-of-batch - JSON body")]
+    async fn ceps_api_cep85_total_supply_of_batch(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_total_supply_of_batch(&body).await)
+    }
+
     #[tool(description = "POST CEP-95 install — JSON body")]
     async fn ceps_api_cep95_install(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_install(&body).await)
@@ -342,6 +377,11 @@ impl CepsApiMcp {
     #[tool(description = "POST CEP-95 burn — JSON body")]
     async fn ceps_api_cep95_burn(&self, body: String) -> ToolOutput {
         ToolOutput::text(client::cep95_burn(&body).await)
+    }
+
+    #[tool(description = "POST CEP-95 transfer-ownership - JSON body")]
+    async fn ceps_api_cep95_transfer_ownership(&self, body: String) -> ToolOutput {
+        ToolOutput::text(client::cep95_transfer_ownership(&body).await)
     }
 
     #[tool(description = "POST CEP-95 bind-odra-install — JSON body")]
@@ -390,8 +430,22 @@ impl CepsApiMcp {
     }
 
     #[tool(description = "GET CEP-18 allowances")]
-    async fn ceps_api_cep18_allowances(&self, contract_hash: String, owner: String, spender: String) -> ToolOutput {
+    async fn ceps_api_cep18_allowances(
+        &self,
+        contract_hash: String,
+        owner: String,
+        spender: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep18_allowances(&contract_hash, &owner, &spender).await)
+    }
+
+    #[tool(description = "GET CEP-18 security-badge")]
+    async fn ceps_api_cep18_security_badge(
+        &self,
+        contract_hash: String,
+        account: String,
+    ) -> ToolOutput {
+        ToolOutput::text(client::cep18_security_badge(&contract_hash, &account).await)
     }
 
     #[tool(description = "GET CEP-78 collection-name")]
@@ -430,18 +484,111 @@ impl CepsApiMcp {
     }
 
     #[tool(description = "GET CEP-78 is-approved-for-all")]
-    async fn ceps_api_cep78_is_approved_for_all(&self, contract_hash: String, owner: String, operator: String) -> ToolOutput {
+    async fn ceps_api_cep78_is_approved_for_all(
+        &self,
+        contract_hash: String,
+        owner: String,
+        operator: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep78_is_approved_for_all(&contract_hash, &owner, &operator).await)
     }
 
     #[tool(description = "GET CEP-78 get-approved")]
-    async fn ceps_api_cep78_get_approved(&self, contract_hash: String, token: String) -> ToolOutput {
+    async fn ceps_api_cep78_get_approved(
+        &self,
+        contract_hash: String,
+        token: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep78_get_approved(&contract_hash, &token).await)
     }
 
     #[tool(description = "GET CEP-78 metadata")]
     async fn ceps_api_cep78_metadata(&self, contract_hash: String, token: String) -> ToolOutput {
         ToolOutput::text(client::cep78_metadata(&contract_hash, &token).await)
+    }
+
+    #[tool(description = "GET CEP-78 allow-minting")]
+    async fn ceps_api_cep78_allow_minting(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_allow_minting(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 operator-burn-mode")]
+    async fn ceps_api_cep78_operator_burn_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_operator_burn_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 package-operator-mode")]
+    async fn ceps_api_cep78_package_operator_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_package_operator_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 acl-package-mode")]
+    async fn ceps_api_cep78_acl_package_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_acl_package_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 json-schema")]
+    async fn ceps_api_cep78_json_schema(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_json_schema(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 minting-mode")]
+    async fn ceps_api_cep78_minting_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_minting_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 whitelist-mode")]
+    async fn ceps_api_cep78_whitelist_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_whitelist_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 reporting-mode")]
+    async fn ceps_api_cep78_reporting_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_reporting_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 burn-mode")]
+    async fn ceps_api_cep78_burn_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_burn_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 holder-mode")]
+    async fn ceps_api_cep78_holder_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_holder_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 identifier-mode")]
+    async fn ceps_api_cep78_identifier_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_identifier_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 metadata-mutability")]
+    async fn ceps_api_cep78_metadata_mutability(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_metadata_mutability(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 nft-kind")]
+    async fn ceps_api_cep78_nft_kind(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_nft_kind(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 nft-metadata-kind")]
+    async fn ceps_api_cep78_nft_metadata_kind(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_nft_metadata_kind(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 ownership-mode")]
+    async fn ceps_api_cep78_ownership_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep78_ownership_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-78 is-acl-whitelisted")]
+    async fn ceps_api_cep78_is_acl_whitelisted(
+        &self,
+        contract_hash: String,
+        entity: String,
+    ) -> ToolOutput {
+        ToolOutput::text(client::cep78_is_acl_whitelisted(&contract_hash, &entity).await)
     }
 
     #[tool(description = "GET CEP-85 collection-name")]
@@ -455,7 +602,12 @@ impl CepsApiMcp {
     }
 
     #[tool(description = "GET CEP-85 balance-of")]
-    async fn ceps_api_cep85_balance_of(&self, contract_hash: String, owner: String, id: String) -> ToolOutput {
+    async fn ceps_api_cep85_balance_of(
+        &self,
+        contract_hash: String,
+        owner: String,
+        id: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep85_balance_of(&contract_hash, &owner, &id).await)
     }
 
@@ -465,7 +617,11 @@ impl CepsApiMcp {
     }
 
     #[tool(description = "GET CEP-85 total-supply-of")]
-    async fn ceps_api_cep85_total_supply_of(&self, contract_hash: String, id: String) -> ToolOutput {
+    async fn ceps_api_cep85_total_supply_of(
+        &self,
+        contract_hash: String,
+        id: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep85_total_supply_of(&contract_hash, &id).await)
     }
 
@@ -474,13 +630,70 @@ impl CepsApiMcp {
         ToolOutput::text(client::cep85_uri(&contract_hash).await)
     }
 
+    #[tool(description = "GET CEP-85 uri with token id query")]
+    async fn ceps_api_cep85_uri_with_id(&self, contract_hash: String, id: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_uri_with_id(&contract_hash, &id).await)
+    }
+
+    #[tool(description = "GET CEP-85 total-fungible-supply")]
+    async fn ceps_api_cep85_total_fungible_supply(
+        &self,
+        contract_hash: String,
+        id: String,
+    ) -> ToolOutput {
+        ToolOutput::text(client::cep85_total_fungible_supply(&contract_hash, &id).await)
+    }
+
+    #[tool(description = "GET CEP-85 enable-burn")]
+    async fn ceps_api_cep85_enable_burn(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_enable_burn(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-85 events-mode")]
+    async fn ceps_api_cep85_events_mode(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_events_mode(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-85 number-of-minted-tokens")]
+    async fn ceps_api_cep85_number_of_minted_tokens(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_number_of_minted_tokens(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-85 transfer-filter-contract")]
+    async fn ceps_api_cep85_transfer_filter_contract(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_transfer_filter_contract(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-85 transfer-filter-method")]
+    async fn ceps_api_cep85_transfer_filter_method(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep85_transfer_filter_method(&contract_hash).await)
+    }
+
+    #[tool(description = "GET CEP-85 security-badge")]
+    async fn ceps_api_cep85_security_badge(
+        &self,
+        contract_hash: String,
+        entity: String,
+    ) -> ToolOutput {
+        ToolOutput::text(client::cep85_security_badge(&contract_hash, &entity).await)
+    }
+
     #[tool(description = "GET CEP-85 is-non-fungible")]
-    async fn ceps_api_cep85_is_non_fungible(&self, contract_hash: String, id: String) -> ToolOutput {
+    async fn ceps_api_cep85_is_non_fungible(
+        &self,
+        contract_hash: String,
+        id: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep85_is_non_fungible(&contract_hash, &id).await)
     }
 
     #[tool(description = "GET CEP-85 is-approved-for-all")]
-    async fn ceps_api_cep85_is_approved_for_all(&self, contract_hash: String, owner: String, operator: String) -> ToolOutput {
+    async fn ceps_api_cep85_is_approved_for_all(
+        &self,
+        contract_hash: String,
+        owner: String,
+        operator: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep85_is_approved_for_all(&contract_hash, &owner, &operator).await)
     }
 
@@ -510,20 +723,37 @@ impl CepsApiMcp {
     }
 
     #[tool(description = "GET CEP-95 get-approved")]
-    async fn ceps_api_cep95_get_approved(&self, contract_hash: String, token_id: String) -> ToolOutput {
+    async fn ceps_api_cep95_get_approved(
+        &self,
+        contract_hash: String,
+        token_id: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep95_get_approved(&contract_hash, &token_id).await)
     }
 
     #[tool(description = "GET CEP-95 is-approved-for-all")]
-    async fn ceps_api_cep95_is_approved_for_all(&self, contract_hash: String, owner: String, operator: String) -> ToolOutput {
+    async fn ceps_api_cep95_is_approved_for_all(
+        &self,
+        contract_hash: String,
+        owner: String,
+        operator: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep95_is_approved_for_all(&contract_hash, &owner, &operator).await)
     }
 
     #[tool(description = "GET CEP-95 token-metadata")]
-    async fn ceps_api_cep95_token_metadata(&self, contract_hash: String, token_id: String) -> ToolOutput {
+    async fn ceps_api_cep95_token_metadata(
+        &self,
+        contract_hash: String,
+        token_id: String,
+    ) -> ToolOutput {
         ToolOutput::text(client::cep95_token_metadata(&contract_hash, &token_id).await)
     }
 
+    #[tool(description = "GET CEP-95 get-owner")]
+    async fn ceps_api_cep95_get_owner(&self, contract_hash: String) -> ToolOutput {
+        ToolOutput::text(client::cep95_get_owner(&contract_hash).await)
+    }
 }
 
 /// Serves MCP over stdio until the client disconnects.

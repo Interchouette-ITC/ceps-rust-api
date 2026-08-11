@@ -482,3 +482,157 @@ pub async fn cep95_token_metadata(contract_hash: &str, token_id: &str) -> String
     path = path.replace("{token_id}", token_id);
     get_path(&path).await
 }
+
+pub async fn cep18_security_badge(contract_hash: &str, account: &str) -> String {
+    get_path(&format!(
+        "/v1/cep18/{contract_hash}/security-badge/{account}"
+    ))
+    .await
+}
+
+pub async fn cep78_owner_of_session(body: &str) -> String {
+    post_json("/v1/cep78/owner-of-session", body).await
+}
+
+pub async fn cep78_balance_of_session(body: &str) -> String {
+    post_json("/v1/cep78/balance-of-session", body).await
+}
+
+pub async fn cep78_get_approved_session(body: &str) -> String {
+    post_json("/v1/cep78/get-approved-session", body).await
+}
+
+pub async fn cep78_is_approved_for_all_session(body: &str) -> String {
+    post_json("/v1/cep78/is-approved-for-all-session", body).await
+}
+
+pub async fn cep78_allow_minting(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/allow-minting")).await
+}
+
+pub async fn cep78_operator_burn_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/operator-burn-mode")).await
+}
+
+pub async fn cep78_package_operator_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/package-operator-mode")).await
+}
+
+pub async fn cep78_acl_package_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/acl-package-mode")).await
+}
+
+pub async fn cep78_json_schema(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/json-schema")).await
+}
+
+pub async fn cep78_minting_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/minting-mode")).await
+}
+
+pub async fn cep78_whitelist_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/whitelist-mode")).await
+}
+
+pub async fn cep78_reporting_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/reporting-mode")).await
+}
+
+pub async fn cep78_burn_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/burn-mode")).await
+}
+
+pub async fn cep78_holder_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/holder-mode")).await
+}
+
+pub async fn cep78_identifier_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/identifier-mode")).await
+}
+
+pub async fn cep78_metadata_mutability(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/metadata-mutability")).await
+}
+
+pub async fn cep78_nft_kind(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/nft-kind")).await
+}
+
+pub async fn cep78_nft_metadata_kind(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/nft-metadata-kind")).await
+}
+
+pub async fn cep78_ownership_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep78/{contract_hash}/ownership-mode")).await
+}
+
+pub async fn cep78_is_acl_whitelisted(contract_hash: &str, entity: &str) -> String {
+    get_path(&format!(
+        "/v1/cep78/{contract_hash}/is-acl-whitelisted/{entity}"
+    ))
+    .await
+}
+
+pub async fn cep85_balance_of_batch(body: &str) -> String {
+    post_json("/v1/cep85/balance-of-batch", body).await
+}
+
+pub async fn cep85_supply_of_batch(body: &str) -> String {
+    post_json("/v1/cep85/supply-of-batch", body).await
+}
+
+pub async fn cep85_total_supply_of_batch(body: &str) -> String {
+    post_json("/v1/cep85/total-supply-of-batch", body).await
+}
+
+pub async fn cep85_uri_with_id(contract_hash: &str, id: &str) -> String {
+    get_path(&format!("/v1/cep85/{contract_hash}/uri?id={id}")).await
+}
+
+pub async fn cep85_total_fungible_supply(contract_hash: &str, id: &str) -> String {
+    get_path(&format!(
+        "/v1/cep85/{contract_hash}/total-fungible-supply/{id}"
+    ))
+    .await
+}
+
+pub async fn cep85_enable_burn(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep85/{contract_hash}/enable-burn")).await
+}
+
+pub async fn cep85_events_mode(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep85/{contract_hash}/events-mode")).await
+}
+
+pub async fn cep85_number_of_minted_tokens(contract_hash: &str) -> String {
+    get_path(&format!(
+        "/v1/cep85/{contract_hash}/number-of-minted-tokens"
+    ))
+    .await
+}
+
+pub async fn cep85_transfer_filter_contract(contract_hash: &str) -> String {
+    get_path(&format!(
+        "/v1/cep85/{contract_hash}/transfer-filter-contract"
+    ))
+    .await
+}
+
+pub async fn cep85_transfer_filter_method(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep85/{contract_hash}/transfer-filter-method")).await
+}
+
+pub async fn cep85_security_badge(contract_hash: &str, entity: &str) -> String {
+    get_path(&format!(
+        "/v1/cep85/{contract_hash}/security-badge/{entity}"
+    ))
+    .await
+}
+
+pub async fn cep95_transfer_ownership(body: &str) -> String {
+    post_json("/v1/cep95/transfer-ownership", body).await
+}
+
+pub async fn cep95_get_owner(contract_hash: &str) -> String {
+    get_path(&format!("/v1/cep95/{contract_hash}/get-owner")).await
+}

@@ -479,6 +479,110 @@ qstr!(
     "/v1/cep78/{contract_hash}/number-of-minted-tokens",
     number_of_minted_tokens
 );
+qstr!(
+    cep78_allow_minting,
+    "/v1/cep78/{contract_hash}/allow-minting",
+    allow_minting
+);
+qstr!(
+    cep78_operator_burn_mode,
+    "/v1/cep78/{contract_hash}/operator-burn-mode",
+    operator_burn_mode
+);
+qstr!(
+    cep78_package_operator_mode,
+    "/v1/cep78/{contract_hash}/package-operator-mode",
+    package_operator_mode
+);
+qstr!(
+    cep78_acl_package_mode,
+    "/v1/cep78/{contract_hash}/acl-package-mode",
+    acl_package_mode
+);
+qstr!(
+    cep78_json_schema,
+    "/v1/cep78/{contract_hash}/json-schema",
+    json_schema
+);
+
+macro_rules! qmode {
+    ($name:ident, $path:literal, $method:ident, $key:literal) => {
+        #[get($path)]
+        pub async fn $name(
+            state: web::Data<AppState>,
+            path: web::Path<String>,
+        ) -> Result<HttpResponse, ApiError> {
+            let mut client = client(&state)?;
+            bind_contract(client.core_mut(), &path, None)?;
+            let v = client.$method().await.map_err(ApiError::from_cep)?;
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                $key: format!("{:?}", v),
+                concat!($key, "_u8"): v as u8,
+            })))
+        }
+    };
+}
+
+qmode!(
+    cep78_minting_mode,
+    "/v1/cep78/{contract_hash}/minting-mode",
+    minting_mode,
+    "minting_mode"
+);
+qmode!(
+    cep78_whitelist_mode,
+    "/v1/cep78/{contract_hash}/whitelist-mode",
+    whitelist_mode,
+    "whitelist_mode"
+);
+qmode!(
+    cep78_reporting_mode,
+    "/v1/cep78/{contract_hash}/reporting-mode",
+    reporting_mode,
+    "reporting_mode"
+);
+qmode!(
+    cep78_burn_mode,
+    "/v1/cep78/{contract_hash}/burn-mode",
+    burn_mode,
+    "burn_mode"
+);
+qmode!(
+    cep78_holder_mode,
+    "/v1/cep78/{contract_hash}/holder-mode",
+    holder_mode,
+    "holder_mode"
+);
+qmode!(
+    cep78_identifier_mode,
+    "/v1/cep78/{contract_hash}/identifier-mode",
+    identifier_mode,
+    "identifier_mode"
+);
+qmode!(
+    cep78_metadata_mutability,
+    "/v1/cep78/{contract_hash}/metadata-mutability",
+    metadata_mutability,
+    "metadata_mutability"
+);
+qmode!(
+    cep78_nft_kind,
+    "/v1/cep78/{contract_hash}/nft-kind",
+    nft_kind,
+    "nft_kind"
+);
+qmode!(
+    cep78_nft_metadata_kind,
+    "/v1/cep78/{contract_hash}/nft-metadata-kind",
+    nft_metadata_kind,
+    "nft_metadata_kind"
+);
+qmode!(
+    cep78_ownership_mode,
+    "/v1/cep78/{contract_hash}/ownership-mode",
+    ownership_mode,
+    "ownership_mode"
+);
 
 #[get("/v1/cep78/{contract_hash}/events-mode")]
 pub async fn cep78_events_mode(
@@ -611,4 +715,135 @@ pub async fn cep78_metadata(
 #[derive(Deserialize)]
 pub struct MetadataQuery {
     pub kind: Option<u8>,
+}
+
+#[get("/v1/cep78/{contract_hash}/is-acl-whitelisted/{entity}")]
+pub async fn cep78_is_acl_whitelisted(
+    state: web::Data<AppState>,
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, ApiError> {
+    let (contract_hash, entity) = path.into_inner();
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &contract_hash, None)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "whitelisted": client
+            .is_acl_whitelisted(&entity)
+            .await
+            .map_err(ApiError::from_cep)?
+    })))
+}
+
+#[derive(Deserialize)]
+pub struct OwnerOfSessionBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub token_id: Option<String>,
+    pub token_hash: Option<String>,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[post("/v1/cep78/owner-of-session")]
+pub async fn cep78_owner_of_session(
+    state: web::Data<AppState>,
+    body: web::Json<OwnerOfSessionBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
+    let wasm = resolve_wasm(&state, &body.session_wasm)?;
+    mutate!(state, body.envelope, |tx| client.owner_of_session(
+        &token,
+        &body.key_name,
+        &wasm,
+        tx
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct BalanceOfSessionBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub token_owner: String,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[post("/v1/cep78/balance-of-session")]
+pub async fn cep78_balance_of_session(
+    state: web::Data<AppState>,
+    body: web::Json<BalanceOfSessionBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    let wasm = resolve_wasm(&state, &body.session_wasm)?;
+    mutate!(state, body.envelope, |tx| client.balance_of_session(
+        &body.token_owner,
+        &body.key_name,
+        &wasm,
+        tx
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct GetApprovedSessionBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub token_id: Option<String>,
+    pub token_hash: Option<String>,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[post("/v1/cep78/get-approved-session")]
+pub async fn cep78_get_approved_session(
+    state: web::Data<AppState>,
+    body: web::Json<GetApprovedSessionBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
+    let wasm = resolve_wasm(&state, &body.session_wasm)?;
+    mutate!(state, body.envelope, |tx| client.get_approved_session(
+        &token,
+        &body.key_name,
+        &wasm,
+        tx
+    ))
+}
+
+#[derive(Deserialize)]
+pub struct IsApprovedForAllSessionBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub token_owner: String,
+    pub operator: String,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[post("/v1/cep78/is-approved-for-all-session")]
+pub async fn cep78_is_approved_for_all_session(
+    state: web::Data<AppState>,
+    body: web::Json<IsApprovedForAllSessionBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    let wasm = resolve_wasm(&state, &body.session_wasm)?;
+    mutate!(state, body.envelope, |tx| client
+        .is_approved_for_all_session(
+            &body.token_owner,
+            &body.operator,
+            &body.key_name,
+            &wasm,
+            tx
+        ))
 }
