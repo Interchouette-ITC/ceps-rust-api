@@ -20,6 +20,20 @@ use utoipa::OpenApi;
         crate::tx::SubmitMode,
         crate::tx::WaitMode,
         crate::tx::SignerRef,
+        crate::routes::extractors::MutateQuery,
+        crate::routes::extractors::ContractQuery,
+        crate::routes::extractors::NameResponse,
+        crate::routes::extractors::SymbolResponse,
+        crate::routes::extractors::DecimalsResponse,
+        crate::routes::extractors::TotalSupplyResponse,
+        crate::routes::extractors::EventsModeResponse,
+        crate::routes::extractors::EnabledResponse,
+        crate::routes::extractors::BalanceResponse,
+        crate::routes::extractors::AllowanceResponse,
+        crate::routes::extractors::BadgeResponse,
+        crate::routes::extractors::BoolResponse,
+        crate::routes::extractors::OptionalStringResponse,
+        crate::routes::extractors::U64Response,
     )),
     tags(
         (name = "Health", description = "Liveness and hello"),
@@ -31,7 +45,7 @@ use utoipa::OpenApi;
     ),
     info(
         title = "ceps-rust-api",
-        description = "Casper CEP HTTP API. Every Actix CEP route is listed here. CEP mutates use MutateEnvelope (submit/wait/signer/payment_amount). Optional local or KMS put signing (no PEM in HTTP bodies). Transactions only.",
+        description = "Casper CEP HTTP API. Mutates take typed query parameters (submit/wait/signer/payment_amount plus operation fields). Selected JSON bodies only for nested CEP data (e.g. token metadata). Optional local or KMS put signing.",
         version = "1.0.0"
     )
 )]
@@ -71,15 +85,14 @@ struct ApiDocChainPut;
         crate::routes::cep18::cep18_security_badge
     ),
     components(schemas(
-        crate::routes::cep18::ContractQuery,
-        crate::routes::cep18::InstallBody,
-        crate::routes::cep18::UpgradeBody,
-        crate::routes::cep18::TransferBody,
-        crate::routes::cep18::TransferFromBody,
-        crate::routes::cep18::ApproveBody,
-        crate::routes::cep18::MintBurnBody,
-        crate::routes::cep18::ChangeEventsBody,
-        crate::routes::cep18::ChangeSecurityBody
+        crate::routes::cep18::InstallQuery,
+        crate::routes::cep18::UpgradeQuery,
+        crate::routes::cep18::TransferQuery,
+        crate::routes::cep18::TransferFromQuery,
+        crate::routes::cep18::ApproveQuery,
+        crate::routes::cep18::MintBurnQuery,
+        crate::routes::cep18::ChangeEventsQuery,
+        crate::routes::cep18::ChangeSecurityQuery
     ))
 )]
 struct ApiDocCep18;
@@ -134,25 +147,26 @@ struct ApiDocCep18;
         crate::routes::cep78::cep78_is_acl_whitelisted
     ),
     components(schemas(
-        crate::routes::cep78::ContractRef,
-        crate::routes::cep78::InstallBody,
-        crate::routes::cep78::UpgradeBody,
-        crate::routes::cep78::MintBody,
-        crate::routes::cep78::TransferBody,
-        crate::routes::cep78::BurnBody,
-        crate::routes::cep78::RegisterOwnerBody,
-        crate::routes::cep78::ApproveBody,
-        crate::routes::cep78::ApprovalForAllBody,
-        crate::routes::cep78::SetMetaBody,
-        crate::routes::cep78::SetVariablesBody,
-        crate::routes::cep78::MintSessionBody,
-        crate::routes::cep78::TransferSessionBody,
-        crate::routes::cep78::UpdatedReceiptsBody,
+        crate::routes::cep78::InstallQuery,
+        crate::routes::cep78::InstallSchemaBody,
+        crate::routes::cep78::TokenMetaBody,
+        crate::routes::cep78::UpgradeQuery,
+        crate::routes::cep78::MintQuery,
+        crate::routes::cep78::TransferQuery,
+        crate::routes::cep78::BurnQuery,
+        crate::routes::cep78::RegisterOwnerQuery,
+        crate::routes::cep78::ApproveQuery,
+        crate::routes::cep78::ApprovalForAllQuery,
+        crate::routes::cep78::SetMetaQuery,
+        crate::routes::cep78::SetVariablesQuery,
+        crate::routes::cep78::MintSessionQuery,
+        crate::routes::cep78::TransferSessionQuery,
+        crate::routes::cep78::UpdatedReceiptsQuery,
         crate::routes::cep78::MetadataQuery,
-        crate::routes::cep78::OwnerOfSessionBody,
-        crate::routes::cep78::BalanceOfSessionBody,
-        crate::routes::cep78::GetApprovedSessionBody,
-        crate::routes::cep78::IsApprovedForAllSessionBody
+        crate::routes::cep78::OwnerOfSessionQuery,
+        crate::routes::cep78::BalanceOfSessionQuery,
+        crate::routes::cep78::GetApprovedSessionQuery,
+        crate::routes::cep78::IsApprovedForAllSessionQuery
     ))
 )]
 struct ApiDocCep78;
@@ -195,24 +209,23 @@ struct ApiDocCep78;
         crate::routes::cep85::cep85_security_badge
     ),
     components(schemas(
-        crate::routes::cep85::ContractRef,
-        crate::routes::cep85::InstallBody,
-        crate::routes::cep85::UpgradeBody,
-        crate::routes::cep85::MintBody,
-        crate::routes::cep85::BatchMintBody,
-        crate::routes::cep85::TransferBody,
-        crate::routes::cep85::BatchTransferBody,
-        crate::routes::cep85::BurnBody,
-        crate::routes::cep85::BatchBurnBody,
-        crate::routes::cep85::ApprovalBody,
-        crate::routes::cep85::SetUriBody,
-        crate::routes::cep85::SetTotalSupplyBody,
-        crate::routes::cep85::SetTotalSupplyBatchBody,
-        crate::routes::cep85::ChangeSecurityBody,
-        crate::routes::cep85::SetModalitiesBody,
+        crate::routes::cep85::InstallQuery,
+        crate::routes::cep85::UpgradeQuery,
+        crate::routes::cep85::MintQuery,
+        crate::routes::cep85::BatchMintQuery,
+        crate::routes::cep85::TransferQuery,
+        crate::routes::cep85::BatchTransferQuery,
+        crate::routes::cep85::BurnQuery,
+        crate::routes::cep85::BatchBurnQuery,
+        crate::routes::cep85::ApprovalQuery,
+        crate::routes::cep85::SetUriQuery,
+        crate::routes::cep85::SetTotalSupplyQuery,
+        crate::routes::cep85::SetTotalSupplyBatchQuery,
+        crate::routes::cep85::ChangeSecurityQuery,
+        crate::routes::cep85::SetModalitiesQuery,
         crate::routes::cep85::UriQuery,
-        crate::routes::cep85::BatchAccountsIdsBody,
-        crate::routes::cep85::BatchIdsBody
+        crate::routes::cep85::BatchAccountsIdsQuery,
+        crate::routes::cep85::BatchIdsQuery
     ))
 )]
 struct ApiDocCep85;
@@ -243,15 +256,18 @@ struct ApiDocCep85;
         crate::routes::cep95::cep95_bind_odra_install
     ),
     components(schemas(
-        crate::routes::cep95::ContractRef,
-        crate::routes::cep95::InstallBody,
-        crate::routes::cep95::TransferBody,
-        crate::routes::cep95::ApproveBody,
-        crate::routes::cep95::ApproveForAllBody,
-        crate::routes::cep95::MintBody,
-        crate::routes::cep95::BurnBody,
-        crate::routes::cep95::TransferOwnershipBody,
-        crate::routes::cep95::BindOdraInstallBody
+        crate::routes::cep95::InstallQuery,
+        crate::routes::cep95::TransferQuery,
+        crate::routes::cep95::ApproveQuery,
+        crate::routes::cep95::ApproveForAllQuery,
+        crate::routes::cep95::MintQuery,
+        crate::routes::cep95::MintMetadataBody,
+        crate::routes::cep95::BurnQuery,
+        crate::routes::cep95::TransferOwnershipQuery,
+        crate::routes::cep95::BindOdraInstallQuery,
+        crate::routes::cep95::OwnerResponse,
+        crate::routes::cep95::TokenMetadataResponse,
+        crate::routes::cep95::BindOdraInstallResponse
     ))
 )]
 struct ApiDocCep95;

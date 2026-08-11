@@ -37,12 +37,70 @@ pub async fn get_path(path: &str) -> String {
 }
 
 pub async fn post_json(path: &str, body: &str) -> String {
-    let url = format!("{}{}", base(), path);
-    let parsed: Result<Value, _> = serde_json::from_str(body);
-    match parsed {
-        Ok(v) => text_or_err(client().post(&url).json(&v).send().await).await,
-        Err(e) => format!("invalid JSON body: {e}"),
+    match serde_json::from_str::<Value>(body) {
+        Ok(v) => post_params_value(path, &v).await,
+        Err(e) => format!("invalid JSON params: {e}"),
     }
+}
+
+fn scalar_to_string(v: &Value) -> Option<String> {
+    match v {
+        Value::Null => None,
+        Value::Bool(b) => Some(b.to_string()),
+        Value::Number(n) => Some(n.to_string()),
+        Value::String(s) => Some(s.clone()),
+        other => Some(other.to_string()),
+    }
+}
+
+/// Flat JSON object → query string; nested CEP objects become optional JSON body.
+async fn post_params_value(path: &str, v: &Value) -> String {
+    let Some(obj) = v.as_object() else {
+        return "params must be a JSON object".into();
+    };
+    let mut query: Vec<(String, String)> = Vec::new();
+    let mut body_map = serde_json::Map::new();
+    for (k, val) in obj {
+        if k == "signer" {
+            if let Some(pk) = val
+                .get("public_key")
+                .and_then(|x| x.as_str())
+                .or_else(|| val.as_str())
+            {
+                query.push(("signer".into(), pk.to_string()));
+            }
+            continue;
+        }
+        if matches!(k.as_str(), "token_meta_data" | "json_schema" | "metadata")
+            && (val.is_object() || val.is_array())
+        {
+            body_map.insert(k.clone(), val.clone());
+            continue;
+        }
+        match val {
+            Value::Null => {}
+            Value::Array(items) => {
+                for item in items {
+                    if let Some(s) = scalar_to_string(item) {
+                        query.push((k.clone(), s));
+                    }
+                }
+            }
+            other => {
+                if let Some(s) = scalar_to_string(other) {
+                    query.push((k.clone(), s));
+                }
+            }
+        }
+    }
+    let url = format!("{}{}", base(), path);
+    let req = client().post(&url).query(&query);
+    let result = if body_map.is_empty() {
+        req.send().await
+    } else {
+        req.json(&Value::Object(body_map)).send().await
+    };
+    text_or_err(result).await
 }
 
 pub async fn hello() -> String {

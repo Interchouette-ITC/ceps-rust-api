@@ -2,15 +2,20 @@
 
 use crate::error::ApiError;
 use crate::routes::common::{bind_contract, cep_core, resolve_wasm};
+use crate::routes::extractors::{
+    json_value_to_string, opt_list, parse_events_mode78, ContractQuery, MutateQuery,
+};
 use crate::state::AppState;
-use crate::tx::{build_transaction_params, finalize_call, MutateEnvelope};
+use crate::tx::{build_transaction_params, finalize_call};
 use actix_web::{get, post, web, HttpResponse};
 use ceps_client::cep78::{
-    InstallArgs, NftMetadataKind, OwnershipMode, SetVariablesArgs, TokenIdentifier, UpgradeArgs,
+    BurnMode, HolderMode, IdentifierMode, InstallArgs, MetadataMutability, MintingMode,
+    NamedKeyConventionMode, NftKind, NftMetadataKind, OwnerReverseLookupMode, OwnershipMode,
+    SetVariablesArgs, TokenIdentifier, UpgradeArgs, WhitelistMode,
 };
-use ceps_client::{CEP78Client, EventsMode78};
+use ceps_client::CEP78Client;
 use serde::Deserialize;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 fn client(state: &AppState) -> Result<CEP78Client, ApiError> {
     CEP78Client::new(
@@ -32,6 +37,102 @@ macro_rules! mutate {
     }};
 }
 
+fn parse_ownership(s: &str) -> Result<OwnershipMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "minter" => Ok(OwnershipMode::Minter),
+        "1" | "assigned" => Ok(OwnershipMode::Assigned),
+        "2" | "transferable" => Ok(OwnershipMode::Transferable),
+        _ => Err(ApiError::BadRequest(format!("invalid ownership_mode {s}"))),
+    }
+}
+fn parse_nft_metadata_kind(s: &str) -> Result<NftMetadataKind, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "cep78" => Ok(NftMetadataKind::CEP78),
+        "1" | "nft721" => Ok(NftMetadataKind::Nft721),
+        "2" | "raw" => Ok(NftMetadataKind::Raw),
+        "3" | "customvalidated" | "custom_validated" => Ok(NftMetadataKind::CustomValidated),
+        _ => Err(ApiError::BadRequest(format!(
+            "invalid nft_metadata_kind {s}"
+        ))),
+    }
+}
+fn parse_identifier_mode(s: &str) -> Result<IdentifierMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "ordinal" => Ok(IdentifierMode::Ordinal),
+        "1" | "hash" => Ok(IdentifierMode::Hash),
+        _ => Err(ApiError::BadRequest(format!("invalid identifier_mode {s}"))),
+    }
+}
+fn parse_metadata_mutability(s: &str) -> Result<MetadataMutability, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "immutable" => Ok(MetadataMutability::Immutable),
+        "1" | "mutable" => Ok(MetadataMutability::Mutable),
+        _ => Err(ApiError::BadRequest(format!(
+            "invalid metadata_mutability {s}"
+        ))),
+    }
+}
+fn parse_nft_kind(s: &str) -> Result<NftKind, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "physical" => Ok(NftKind::Physical),
+        "1" | "digital" => Ok(NftKind::Digital),
+        "2" | "virtual" => Ok(NftKind::Virtual),
+        _ => Err(ApiError::BadRequest(format!("invalid nft_kind {s}"))),
+    }
+}
+fn parse_minting_mode(s: &str) -> Result<MintingMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "installer" => Ok(MintingMode::Installer),
+        "1" | "public" => Ok(MintingMode::Public),
+        "2" | "acl" => Ok(MintingMode::Acl),
+        _ => Err(ApiError::BadRequest(format!("invalid minting_mode {s}"))),
+    }
+}
+fn parse_burn_mode(s: &str) -> Result<BurnMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "burnable" => Ok(BurnMode::Burnable),
+        "1" | "nonburnable" | "non_burnable" => Ok(BurnMode::NonBurnable),
+        _ => Err(ApiError::BadRequest(format!("invalid burn_mode {s}"))),
+    }
+}
+fn parse_whitelist_mode(s: &str) -> Result<WhitelistMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "unlocked" => Ok(WhitelistMode::Unlocked),
+        "1" | "locked" => Ok(WhitelistMode::Locked),
+        _ => Err(ApiError::BadRequest(format!("invalid whitelist_mode {s}"))),
+    }
+}
+fn parse_holder_mode(s: &str) -> Result<HolderMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "accounts" => Ok(HolderMode::Accounts),
+        "1" | "contracts" => Ok(HolderMode::Contracts),
+        "2" | "mixed" => Ok(HolderMode::Mixed),
+        _ => Err(ApiError::BadRequest(format!("invalid holder_mode {s}"))),
+    }
+}
+fn parse_owner_reverse_lookup(s: &str) -> Result<OwnerReverseLookupMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "nolookup" | "no_lookup" => Ok(OwnerReverseLookupMode::NoLookup),
+        "1" | "complete" => Ok(OwnerReverseLookupMode::Complete),
+        "2" | "transfersonly" | "transfers_only" => Ok(OwnerReverseLookupMode::TransfersOnly),
+        _ => Err(ApiError::BadRequest(format!(
+            "invalid owner_reverse_lookup_mode {s}"
+        ))),
+    }
+}
+fn parse_named_key_convention(s: &str) -> Result<NamedKeyConventionMode, ApiError> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "0" | "derivedfromcollectionname" | "derived_from_collection_name" => {
+            Ok(NamedKeyConventionMode::DerivedFromCollectionName)
+        }
+        "1" | "v1_0standard" | "v1_0_standard" => Ok(NamedKeyConventionMode::V1_0Standard),
+        "2" | "v1_0custom" | "v1_0_custom" => Ok(NamedKeyConventionMode::V1_0Custom),
+        _ => Err(ApiError::BadRequest(format!(
+            "invalid named_key_convention {s}"
+        ))),
+    }
+}
+
 fn token_from(id: Option<&str>, hash: Option<&str>) -> Result<TokenIdentifier, ApiError> {
     if let Some(id) = id {
         Ok(TokenIdentifier::Id(id.parse().map_err(|e| {
@@ -46,17 +147,7 @@ fn token_from(id: Option<&str>, hash: Option<&str>) -> Result<TokenIdentifier, A
     }
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct ContractRef {
-    /// Contract hash hex (64 hex chars, no 0x prefix).
-    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
-    pub contract_hash: String,
-    /// Optional package hash hex.
-    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
-    pub package_hash: Option<String>,
-}
-
-fn bound(state: &AppState, contract: &ContractRef) -> Result<CEP78Client, ApiError> {
+fn bound(state: &AppState, contract: &ContractQuery) -> Result<CEP78Client, ApiError> {
     let mut c = client(state)?;
     bind_contract(
         c.core_mut(),
@@ -66,78 +157,165 @@ fn bound(state: &AppState, contract: &ContractRef) -> Result<CEP78Client, ApiErr
     Ok(c)
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct InstallBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct InstallQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
-    /// Canonical wasm id or path under configured wasm roots.
-    #[schema(example = "cep78")]
+    #[param(inline)]
+    pub mutate: MutateQuery,
+    #[param(example = "cep78")]
     pub wasm: String,
-    /// NFT collection name.
-    #[schema(example = "MyNFTs")]
+    #[param(example = "MyNFTs")]
     pub collection_name: String,
-    /// NFT collection symbol.
-    #[schema(example = "MNFT")]
+    #[param(example = "MNFT")]
     pub collection_symbol: String,
-    /// Max collection supply.
-    #[schema(example = 1000)]
+    #[param(example = 1000)]
     pub total_token_supply: u64,
-    /// Ownership mode u8 (see CEP-78).
     #[serde(default = "default_ownership")]
-    #[schema(example = 2)]
-    pub ownership_mode: u8,
+    #[param(example = "Transferable")]
+    pub ownership_mode: String,
+    #[serde(default)]
+    pub nft_metadata_kind: Option<String>,
+    #[serde(default)]
+    pub identifier_mode: Option<String>,
+    #[serde(default)]
+    pub metadata_mutability: Option<String>,
+    #[serde(default)]
+    pub nft_kind: Option<String>,
+    #[serde(default)]
+    pub minting_mode: Option<String>,
+    #[serde(default)]
+    pub allow_minting: Option<bool>,
+    #[serde(default)]
+    pub operator_burn_mode: Option<bool>,
+    #[serde(default)]
+    pub package_operator_mode: Option<bool>,
+    #[serde(default)]
+    pub whitelist_mode: Option<String>,
+    #[serde(default)]
+    pub holder_mode: Option<String>,
+    #[serde(default)]
+    pub acl_package_mode: Option<bool>,
+    #[serde(default)]
+    pub acl_whitelist: Vec<String>,
+    #[serde(default)]
+    pub burn_mode: Option<String>,
+    #[serde(default)]
+    pub owner_reverse_lookup_mode: Option<String>,
+    #[serde(default)]
+    pub named_key_convention: Option<String>,
+    #[serde(default)]
+    pub access_key_name: Option<String>,
+    #[serde(default)]
+    pub hash_key_name: Option<String>,
+    #[serde(default)]
+    pub events_mode: Option<String>,
+    #[serde(default)]
+    pub transfer_filter_contract: Option<String>,
 }
 
-fn default_ownership() -> u8 {
-    2
+#[derive(Debug, Deserialize, ToSchema, Default)]
+pub struct InstallSchemaBody {
+    #[serde(default)]
+    pub json_schema: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, ToSchema, Default)]
+pub struct TokenMetaBody {
+    pub token_meta_data: serde_json::Value,
+}
+
+fn default_ownership() -> String {
+    "Transferable".into()
 }
 
 #[utoipa::path(
     post,
     path = "/v1/cep78/install",
-    request_body(
-        content = InstallBody,
-        example = json!({
-    "submit": "put",
-    "wait": "processed",
-    "signer": {"public_key": "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-    "payment_amount": "2500000000",
-    "wasm": "cep78",
-    "collection_name": "MyNFTs",
-    "collection_symbol": "MNFT",
-    "total_token_supply": 1000,
-    "ownership_mode": 2
-}),
-    ),
+    params(InstallQuery),
+    request_body(content = InstallSchemaBody, description = "Optional json_schema object"),
     responses((status = 200, description = "Install pipeline outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/install")]
 pub async fn cep78_install(
     state: web::Data<AppState>,
-    body: web::Json<InstallBody>,
+    query: web::Query<InstallQuery>,
+    body: Option<web::Json<InstallSchemaBody>>,
 ) -> Result<HttpResponse, ApiError> {
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
     let client = client(&state)?;
-    let wasm = resolve_wasm(&state, &body.wasm)?;
-    let args = InstallArgs::new(
-        &body.collection_name,
-        &body.collection_symbol,
-        body.total_token_supply,
+    let wasm = resolve_wasm(&state, &q.wasm)?;
+    let mut args = InstallArgs::new(
+        &q.collection_name,
+        &q.collection_symbol,
+        q.total_token_supply,
     )
-    .with_ownership_mode(match body.ownership_mode {
-        0 => OwnershipMode::Minter,
-        1 => OwnershipMode::Assigned,
-        _ => OwnershipMode::Transferable,
-    });
-    mutate!(state, body.envelope, |tx| client.install(&args, &wasm, tx))
+    .with_ownership_mode(parse_ownership(&q.ownership_mode)?);
+    if let Some(ref v) = q.nft_metadata_kind {
+        args = args.with_nft_metadata_kind(parse_nft_metadata_kind(v)?);
+    }
+    if let Some(ref v) = q.identifier_mode {
+        args = args.with_identifier_mode(parse_identifier_mode(v)?);
+    }
+    if let Some(ref v) = q.metadata_mutability {
+        args = args.with_metadata_mutability(parse_metadata_mutability(v)?);
+    }
+    if let Some(ref v) = q.nft_kind {
+        args.nft_kind = Some(parse_nft_kind(v)?);
+    }
+    if let Some(ref v) = q.minting_mode {
+        args = args.with_minting_mode(parse_minting_mode(v)?);
+    }
+    if let Some(v) = q.allow_minting {
+        args.allow_minting = Some(v);
+    }
+    if let Some(v) = q.operator_burn_mode {
+        args.operator_burn_mode = Some(v);
+    }
+    if let Some(v) = q.package_operator_mode {
+        args.package_operator_mode = Some(v);
+    }
+    if let Some(ref v) = q.whitelist_mode {
+        args.whitelist_mode = Some(parse_whitelist_mode(v)?);
+    }
+    if let Some(ref v) = q.holder_mode {
+        args = args.with_holder_mode(parse_holder_mode(v)?);
+    }
+    if let Some(v) = q.acl_package_mode {
+        args.acl_package_mode = Some(v);
+    }
+    if let Some(v) = opt_list(q.acl_whitelist) {
+        args.acl_whitelist = Some(v);
+    }
+    if let Some(ref v) = q.burn_mode {
+        args = args.with_burn_mode(parse_burn_mode(v)?);
+    }
+    if let Some(ref v) = q.owner_reverse_lookup_mode {
+        args = args.with_owner_reverse_lookup_mode(parse_owner_reverse_lookup(v)?);
+    }
+    if let Some(ref v) = q.named_key_convention {
+        args.named_key_convention = Some(parse_named_key_convention(v)?);
+    }
+    args.access_key_name = q.access_key_name.clone();
+    args.hash_key_name = q.hash_key_name.clone();
+    if let Some(ref m) = q.events_mode {
+        args.events_mode = Some(parse_events_mode78(m)?);
+    }
+    args.transfer_filter_contract = q.transfer_filter_contract.clone();
+    if let Some(schema) = body.and_then(|b| b.into_inner().json_schema) {
+        args.json_schema = Some(json_value_to_string(&schema)?);
+    }
+    mutate!(state, envelope, |tx| client.install(&args, &wasm, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct UpgradeBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct UpgradeQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     /// Canonical wasm id or path under configured wasm roots.
     #[schema(example = "cep78")]
     pub wasm: String,
@@ -147,9 +325,9 @@ pub struct UpgradeBody {
     /// Max collection supply.
     #[schema(example = 1000)]
     pub total_token_supply: Option<u64>,
-    /// Events mode discriminant (0=NoEvents, 1=CES, ...).
-    #[schema(example = 1)]
-    pub events_mode: Option<u8>,
+    #[serde(default)]
+    #[param(example = "CES")]
+    pub events_mode: Option<String>,
     pub acl_package_mode: Option<bool>,
     pub package_operator_mode: Option<bool>,
     pub operator_burn_mode: Option<bool>,
@@ -158,46 +336,42 @@ pub struct UpgradeBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/upgrade",
-    request_body = UpgradeBody,
+    params(UpgradeQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/upgrade")]
 pub async fn cep78_upgrade(
     state: web::Data<AppState>,
-    body: web::Json<UpgradeBody>,
+    query: web::Query<UpgradeQuery>,
 ) -> Result<HttpResponse, ApiError> {
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
     let client = client(&state)?;
-    let wasm = resolve_wasm(&state, &body.wasm)?;
-    let mut args = UpgradeArgs::new(&body.collection_name);
-    args.total_token_supply = body.total_token_supply;
-    if let Some(m) = body.events_mode {
-        args.events_mode = Some(events_mode78_from_u8(m)?);
+    let wasm = resolve_wasm(&state, &q.wasm)?;
+    let mut args = UpgradeArgs::new(&q.collection_name);
+    args.total_token_supply = q.total_token_supply;
+    if let Some(ref m) = q.events_mode {
+        args.events_mode = Some(parse_events_mode78(m)?);
     }
-    args.acl_package_mode = body.acl_package_mode;
-    args.package_operator_mode = body.package_operator_mode;
-    args.operator_burn_mode = body.operator_burn_mode;
-    mutate!(state, body.envelope, |tx| client.upgrade(&args, &wasm, tx))
+    args.acl_package_mode = q.acl_package_mode;
+    args.package_operator_mode = q.package_operator_mode;
+    args.operator_burn_mode = q.operator_burn_mode;
+    mutate!(state, envelope, |tx| client.upgrade(&args, &wasm, tx))
 }
 
-fn events_mode78_from_u8(v: u8) -> Result<EventsMode78, ApiError> {
-    EventsMode78::from_u8(v).ok_or_else(|| ApiError::BadRequest(format!("invalid events_mode {v}")))
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct MintBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct MintQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Owner account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub owner: String,
-    /// Token metadata JSON string.
-    #[schema(example = "{}")]
-    pub token_meta_data: String,
     /// Token hash hex when identifier mode is Hash.
     #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_hash: Option<String>,
@@ -206,33 +380,38 @@ pub struct MintBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/mint",
-    request_body = MintBody,
+    params(MintQuery),
+    request_body = TokenMetaBody,
     responses((status = 200, description = "Mint pipeline outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/mint")]
 pub async fn cep78_mint(
     state: web::Data<AppState>,
-    body: web::Json<MintBody>,
+    query: web::Query<MintQuery>,
+    body: web::Json<TokenMetaBody>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    mutate!(state, body.envelope, |tx| client.mint(
-        &body.owner,
-        &body.token_meta_data,
-        body.token_hash.as_deref(),
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+    let client = bound(&state, &q.contract)?;
+    let meta = json_value_to_string(&body.token_meta_data)?;
+    mutate!(state, envelope, |tx| client.mint(
+        &q.owner,
+        &meta,
+        q.token_hash.as_deref(),
         tx
     ))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct TransferBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct TransferQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     pub source: String,
     pub target: String,
     /// Token id.
@@ -246,34 +425,33 @@ pub struct TransferBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/transfer",
-    request_body = TransferBody,
+    params(TransferQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/transfer")]
 pub async fn cep78_transfer(
     state: web::Data<AppState>,
-    body: web::Json<TransferBody>,
+    query: web::Query<TransferQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    mutate!(state, body.envelope, |tx| client.transfer(
-        &body.source,
-        &body.target,
-        &token,
-        tx
-    ))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    mutate!(state, envelope, |tx| client
+        .transfer(&q.source, &q.target, &token, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct BurnBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct BurnQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
     pub token_id: Option<String>,
@@ -285,29 +463,32 @@ pub struct BurnBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/burn",
-    request_body = BurnBody,
+    params(BurnQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/burn")]
 pub async fn cep78_burn(
     state: web::Data<AppState>,
-    body: web::Json<BurnBody>,
+    query: web::Query<BurnQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    mutate!(state, body.envelope, |tx| client.burn(&token, tx))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    mutate!(state, envelope, |tx| client.burn(&token, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct RegisterOwnerBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct RegisterOwnerQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Token owner key.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_owner: String,
@@ -316,29 +497,32 @@ pub struct RegisterOwnerBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/register-owner",
-    request_body = RegisterOwnerBody,
+    params(RegisterOwnerQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/register-owner")]
 pub async fn cep78_register_owner(
     state: web::Data<AppState>,
-    body: web::Json<RegisterOwnerBody>,
+    query: web::Query<RegisterOwnerQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    mutate!(state, body.envelope, |tx| client
-        .register_owner(&body.token_owner, tx))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    mutate!(state, envelope, |tx| client
+        .register_owner(&q.token_owner, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct ApproveBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct ApproveQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Spender account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub spender: String,
@@ -353,55 +537,52 @@ pub struct ApproveBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/approve",
-    request_body = ApproveBody,
+    params(ApproveQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/approve")]
 pub async fn cep78_approve(
     state: web::Data<AppState>,
-    body: web::Json<ApproveBody>,
+    query: web::Query<ApproveQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    mutate!(state, body.envelope, |tx| client.approve(
-        &body.spender,
-        &token,
-        tx
-    ))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    mutate!(state, envelope, |tx| client.approve(&q.spender, &token, tx))
 }
 
 #[utoipa::path(
     post,
     path = "/v1/cep78/revoke",
-    request_body = ApproveBody,
+    params(ApproveQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/revoke")]
 pub async fn cep78_revoke(
     state: web::Data<AppState>,
-    body: web::Json<ApproveBody>,
+    query: web::Query<ApproveQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    mutate!(state, body.envelope, |tx| client.revoke(
-        &body.spender,
-        &token,
-        tx
-    ))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    mutate!(state, envelope, |tx| client.revoke(&q.spender, &token, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct ApprovalForAllBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct ApprovalForAllQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Operator account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub operator: String,
@@ -413,35 +594,35 @@ pub struct ApprovalForAllBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/set-approval-for-all",
-    request_body = ApprovalForAllBody,
+    params(ApprovalForAllQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/set-approval-for-all")]
 pub async fn cep78_set_approval_for_all(
     state: web::Data<AppState>,
-    body: web::Json<ApprovalForAllBody>,
+    query: web::Query<ApprovalForAllQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    mutate!(state, body.envelope, |tx| client.set_approval_for_all(
-        &body.operator,
-        body.approve_all,
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    mutate!(state, envelope, |tx| client.set_approval_for_all(
+        &q.operator,
+        q.approve_all,
         tx
     ))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct SetMetaBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct SetMetaQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
-    /// Token metadata JSON string.
-    #[schema(example = "{}")]
-    pub token_meta_data: String,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
     pub token_id: Option<String>,
@@ -453,37 +634,40 @@ pub struct SetMetaBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/set-token-metadata",
-    request_body = SetMetaBody,
+    params(SetMetaQuery),
+    request_body = TokenMetaBody,
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/set-token-metadata")]
 pub async fn cep78_set_token_metadata(
     state: web::Data<AppState>,
-    body: web::Json<SetMetaBody>,
+    query: web::Query<SetMetaQuery>,
+    body: web::Json<TokenMetaBody>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    mutate!(state, body.envelope, |tx| client.set_token_metadata(
-        &body.token_meta_data,
-        &token,
-        tx
-    ))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    let meta = json_value_to_string(&body.token_meta_data)?;
+    mutate!(state, envelope, |tx| client
+        .set_token_metadata(&meta, &token, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct SetVariablesBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct SetVariablesQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Whether minting is allowed.
     #[schema(example = true)]
     pub allow_minting: Option<bool>,
-    pub acl_whitelist: Option<Vec<String>>,
+    #[serde(default)]
+    pub acl_whitelist: Vec<String>,
     pub acl_package_mode: Option<bool>,
     pub package_operator_mode: Option<bool>,
     pub operator_burn_mode: Option<bool>,
@@ -492,41 +676,41 @@ pub struct SetVariablesBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/set-variables",
-    request_body = SetVariablesBody,
+    params(SetVariablesQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/set-variables")]
 pub async fn cep78_set_variables(
     state: web::Data<AppState>,
-    body: web::Json<SetVariablesBody>,
+    query: web::Query<SetVariablesQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
     let args = SetVariablesArgs {
-        allow_minting: body.allow_minting,
-        acl_whitelist: body.acl_whitelist.clone(),
-        acl_package_mode: body.acl_package_mode,
-        package_operator_mode: body.package_operator_mode,
-        operator_burn_mode: body.operator_burn_mode,
+        allow_minting: q.allow_minting,
+        acl_whitelist: opt_list(q.acl_whitelist),
+        acl_package_mode: q.acl_package_mode,
+        package_operator_mode: q.package_operator_mode,
+        operator_burn_mode: q.operator_burn_mode,
     };
-    mutate!(state, body.envelope, |tx| client.set_variables(&args, tx))
+    mutate!(state, envelope, |tx| client.set_variables(&args, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct MintSessionBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct MintSessionQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Owner account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub owner: String,
-    /// Token metadata JSON string.
-    #[schema(example = "{}")]
-    pub token_meta_data: String,
     /// Token hash hex when identifier mode is Hash.
     #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_hash: Option<String>,
@@ -536,35 +720,40 @@ pub struct MintSessionBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/mint-session",
-    request_body = MintSessionBody,
+    params(MintSessionQuery),
+    request_body = TokenMetaBody,
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/mint-session")]
 pub async fn cep78_mint_session(
     state: web::Data<AppState>,
-    body: web::Json<MintSessionBody>,
+    query: web::Query<MintSessionQuery>,
+    body: web::Json<TokenMetaBody>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let wasm = resolve_wasm(&state, &body.session_wasm)?;
-    mutate!(state, body.envelope, |tx| client.mint_session(
-        &body.owner,
-        &body.token_meta_data,
-        body.token_hash.as_deref(),
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+    let client = bound(&state, &q.contract)?;
+    let wasm = resolve_wasm(&state, &q.session_wasm)?;
+    let meta = json_value_to_string(&body.token_meta_data)?;
+    mutate!(state, envelope, |tx| client.mint_session(
+        &q.owner,
+        &meta,
+        q.token_hash.as_deref(),
         &wasm,
         tx
     ))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct TransferSessionBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct TransferSessionQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     pub source: String,
     pub target: String,
     /// Token id.
@@ -579,56 +768,55 @@ pub struct TransferSessionBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/transfer-session",
-    request_body = TransferSessionBody,
+    params(TransferSessionQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/transfer-session")]
 pub async fn cep78_transfer_session(
     state: web::Data<AppState>,
-    body: web::Json<TransferSessionBody>,
+    query: web::Query<TransferSessionQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    let wasm = resolve_wasm(&state, &body.session_wasm)?;
-    mutate!(state, body.envelope, |tx| client.transfer_session(
-        &body.source,
-        &body.target,
-        &token,
-        &wasm,
-        tx
-    ))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    let wasm = resolve_wasm(&state, &q.session_wasm)?;
+    mutate!(state, envelope, |tx| client
+        .transfer_session(&q.source, &q.target, &token, &wasm, tx))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct UpdatedReceiptsBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct UpdatedReceiptsQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     pub session_wasm: String,
 }
 
 #[utoipa::path(
     post,
     path = "/v1/cep78/updated-receipts",
-    request_body = UpdatedReceiptsBody,
+    params(UpdatedReceiptsQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/updated-receipts")]
 pub async fn cep78_updated_receipts(
     state: web::Data<AppState>,
-    body: web::Json<UpdatedReceiptsBody>,
+    query: web::Query<UpdatedReceiptsQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let wasm = resolve_wasm(&state, &body.session_wasm)?;
-    mutate!(state, body.envelope, |tx| client
-        .updated_receipts(&wasm, tx))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let wasm = resolve_wasm(&state, &q.session_wasm)?;
+    mutate!(state, envelope, |tx| client.updated_receipts(&wasm, tx))
 }
 
 macro_rules! qstr {
@@ -935,6 +1123,7 @@ pub async fn cep78_metadata(
     path: web::Path<(String, String)>,
     query: web::Query<MetadataQuery>,
 ) -> Result<HttpResponse, ApiError> {
+    let q = query.into_inner();
     let (contract_hash, token) = path.into_inner();
     let mut client = client(&state)?;
     bind_contract(client.core_mut(), &contract_hash, None)?;
@@ -947,7 +1136,7 @@ pub async fn cep78_metadata(
     } else {
         TokenIdentifier::Hash(token)
     };
-    let kind = match query.kind.unwrap_or(0) {
+    let kind = match q.kind.unwrap_or(0) {
         0 => NftMetadataKind::CEP78,
         1 => NftMetadataKind::Nft721,
         2 => NftMetadataKind::Raw,
@@ -963,7 +1152,8 @@ pub async fn cep78_metadata(
     })))
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
 pub struct MetadataQuery {
     pub kind: Option<u8>,
 }
@@ -994,14 +1184,15 @@ pub async fn cep78_is_acl_whitelisted(
     })))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct OwnerOfSessionBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct OwnerOfSessionQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
     pub token_id: Option<String>,
@@ -1015,35 +1206,38 @@ pub struct OwnerOfSessionBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/owner-of-session",
-    request_body = OwnerOfSessionBody,
+    params(OwnerOfSessionQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/owner-of-session")]
 pub async fn cep78_owner_of_session(
     state: web::Data<AppState>,
-    body: web::Json<OwnerOfSessionBody>,
+    query: web::Query<OwnerOfSessionQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    let wasm = resolve_wasm(&state, &body.session_wasm)?;
-    mutate!(state, body.envelope, |tx| client.owner_of_session(
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    let wasm = resolve_wasm(&state, &q.session_wasm)?;
+    mutate!(state, envelope, |tx| client.owner_of_session(
         &token,
-        &body.key_name,
+        &q.key_name,
         &wasm,
         tx
     ))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct BalanceOfSessionBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct BalanceOfSessionQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Token owner key.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_owner: String,
@@ -1054,34 +1248,37 @@ pub struct BalanceOfSessionBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/balance-of-session",
-    request_body = BalanceOfSessionBody,
+    params(BalanceOfSessionQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/balance-of-session")]
 pub async fn cep78_balance_of_session(
     state: web::Data<AppState>,
-    body: web::Json<BalanceOfSessionBody>,
+    query: web::Query<BalanceOfSessionQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let wasm = resolve_wasm(&state, &body.session_wasm)?;
-    mutate!(state, body.envelope, |tx| client.balance_of_session(
-        &body.token_owner,
-        &body.key_name,
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let wasm = resolve_wasm(&state, &q.session_wasm)?;
+    mutate!(state, envelope, |tx| client.balance_of_session(
+        &q.token_owner,
+        &q.key_name,
         &wasm,
         tx
     ))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct GetApprovedSessionBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct GetApprovedSessionQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
     pub token_id: Option<String>,
@@ -1095,35 +1292,38 @@ pub struct GetApprovedSessionBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/get-approved-session",
-    request_body = GetApprovedSessionBody,
+    params(GetApprovedSessionQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/get-approved-session")]
 pub async fn cep78_get_approved_session(
     state: web::Data<AppState>,
-    body: web::Json<GetApprovedSessionBody>,
+    query: web::Query<GetApprovedSessionQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let token = token_from(body.token_id.as_deref(), body.token_hash.as_deref())?;
-    let wasm = resolve_wasm(&state, &body.session_wasm)?;
-    mutate!(state, body.envelope, |tx| client.get_approved_session(
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let token = token_from(q.token_id.as_deref(), q.token_hash.as_deref())?;
+    let wasm = resolve_wasm(&state, &q.session_wasm)?;
+    mutate!(state, envelope, |tx| client.get_approved_session(
         &token,
-        &body.key_name,
+        &q.key_name,
         &wasm,
         tx
     ))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct IsApprovedForAllSessionBody {
+#[derive(Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
+pub struct IsApprovedForAllSessionQuery {
     #[serde(flatten)]
-    #[schema(inline)]
-    pub envelope: MutateEnvelope,
+    #[param(inline)]
+    pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[schema(inline)]
-    pub contract: ContractRef,
+    #[param(inline)]
+    pub contract: ContractQuery,
     /// Token owner key.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_owner: String,
@@ -1137,24 +1337,25 @@ pub struct IsApprovedForAllSessionBody {
 #[utoipa::path(
     post,
     path = "/v1/cep78/is-approved-for-all-session",
-    request_body = IsApprovedForAllSessionBody,
+    params(IsApprovedForAllSessionQuery),
     responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-78"
 )]
 #[post("/v1/cep78/is-approved-for-all-session")]
 pub async fn cep78_is_approved_for_all_session(
     state: web::Data<AppState>,
-    body: web::Json<IsApprovedForAllSessionBody>,
+    query: web::Query<IsApprovedForAllSessionQuery>,
 ) -> Result<HttpResponse, ApiError> {
-    build_transaction_params(&state, &body.envelope)?;
-    let client = bound(&state, &body.contract)?;
-    let wasm = resolve_wasm(&state, &body.session_wasm)?;
-    mutate!(state, body.envelope, |tx| client
-        .is_approved_for_all_session(
-            &body.token_owner,
-            &body.operator,
-            &body.key_name,
-            &wasm,
-            tx
-        ))
+    let q = query.into_inner();
+    let envelope = q.mutate.envelope();
+
+    let client = bound(&state, &q.contract)?;
+    let wasm = resolve_wasm(&state, &q.session_wasm)?;
+    mutate!(state, envelope, |tx| client.is_approved_for_all_session(
+        &q.token_owner,
+        &q.operator,
+        &q.key_name,
+        &wasm,
+        tx
+    ))
 }
