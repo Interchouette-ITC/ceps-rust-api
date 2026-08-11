@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "ceps-rust-api": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "/var/run/docker.sock:/var/run/docker.sock",
+        "-v",
+        "${workspaceFolder}:/workspace",
+        "-e",
+        "CEPS_API_ROOT=/workspace",
+        "-e",
+        "CEPS_HOST_ROOT=${workspaceFolder}",
+        "-e",
+        "CEPS_API_URL=http://host.docker.internal:8080",
+        "-e",
+        "MCP_HTTP=false",
+        "-w",
+        "/workspace",
+        "interchouette/ceps-rust-api-mcp:0.1.0",
+        "ceps-rust-api-mcp"
+      ]
+    }
+  }
+}

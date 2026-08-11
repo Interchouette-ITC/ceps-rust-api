@@ -1,0 +1,39 @@
+name: MCP package (Rust)
+
+on:
+  pull_request:
+    paths:
+      - "mcp/**"
+      - ".github/workflows/mcp-ci.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "mcp/**"
+      - ".github/workflows/mcp-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Cargo test (lib + integration)
+        run: cargo test
+        env:
+          CEPS_API_ROOT: ${{ github.workspace }}
+      - name: Build MCP release binary (transport smoke)
+        run: cargo build --release
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Build MCP image
+        working-directory: ${{ github.workspace }}
+        run: make mcp-docker-build TAG=ci
+      - name: Transport smoke
+        run: cargo test --test transport_smoke -- --nocapture
+        env:
+          CEPS_API_ROOT: ${{ github.workspace }}
