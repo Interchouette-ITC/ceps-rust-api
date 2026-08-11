@@ -5,7 +5,7 @@
 # CEPS_HOST_ROOT must be the absolute host clone path - never /workspace.
 services:
   ceps-api-mcp:
-    image: ${CEPS_API_MCP_IMAGE:-ceps-rust-api-mcp:0.1.0}
+    image: ${CEPS_API_MCP_IMAGE:-ceps-rust-api-mcp:1.0.0}
     container_name: ceps-rust-api-mcp
     build:
       context: ../mcp

@@ -54,6 +54,8 @@ Default node settings match local NCTL: RPC `http://127.0.0.1:11101`, SSE `http:
 Sidecar MCP for agents (Make/Docker lifecycle + HTTP wrappers for every API route). Tools use the `ceps_api_*` prefix. Details: [docs/mcp.md](docs/mcp.md), [mcp/README.md](mcp/README.md).
 
 ```bash
+docker pull interchouette/ceps-rust-api-mcp:1.0.0
+# or tip:
 docker pull interchouette/ceps-rust-api-mcp:dev
 # or org GHCR:
 docker pull ghcr.io/interchouette-itc/ceps-rust-api-mcp:dev

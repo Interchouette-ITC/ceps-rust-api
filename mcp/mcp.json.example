@@ -20,7 +20,7 @@
         "MCP_HTTP=false",
         "-w",
         "/workspace",
-        "interchouette/ceps-rust-api-mcp:0.1.0",
+        "interchouette/ceps-rust-api-mcp:1.0.0",
         "ceps-rust-api-mcp"
       ]
     }

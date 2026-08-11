@@ -32,7 +32,7 @@ use utoipa::OpenApi;
     info(
         title = "ceps-rust-api",
         description = "Casper CEP HTTP API. CEP routes and optional local or KMS put signing (no PEM in HTTP bodies). Uses Transactions only.",
-        version = "0.1.0"
+        version = "1.0.0"
     )
 )]
 pub struct ApiDoc;
