@@ -106,25 +106,10 @@ async fn cep18_make_only_uses_distinct_user_signers() {
 
     let app = test::init_service(create_app(state)).await;
     for (i, pk) in keys.iter().take(2).enumerate() {
-        let resp = test::call_service(
-            &app,
-            test::TestRequest::post()
-                .uri("/v1/cep18/install")
-                .set_json(serde_json::json!({
-                    "submit": "return",
-                    "wait": "accepted",
-                    "signer": {"public_key": pk},
-                    "payment_amount": "500000000000",
-                    "name": format!("U{i}"),
-                    "symbol": format!("U{i}"),
-                    "decimals": 9,
-                    "total_supply": "1000000000000",
-                    "wasm": "cep18",
-                    "enable_mint_and_burn": true
-                }))
-                .to_request(),
-        )
-        .await;
+        let uri = format!(
+            "/v1/cep18/install?submit=return&wait=accepted&signer={pk}&payment_amount=500000000000&name=U{i}&symbol=U{i}&decimals=9&total_supply=1000000000000&wasm=cep18&enable_mint_and_burn=true"
+        );
+        let resp = test::call_service(&app, test::TestRequest::post().uri(&uri).to_request()).await;
         let status = resp.status();
         let body_bytes = test::read_body(resp).await;
         assert!(
@@ -163,19 +148,9 @@ async fn cep18_put_install_mint_transfer_across_users() {
     let install = test::call_service(
         &app,
         test::TestRequest::post()
-            .uri("/v1/cep18/install")
-            .set_json(serde_json::json!({
-                "submit": "put",
-                "wait": "processed",
-                "signer": {"public_key": installer},
-                "payment_amount": "500000000000",
-                "name": name,
-                "symbol": "L18",
-                "decimals": 9,
-                "total_supply": "1000000000000",
-                "wasm": "cep18",
-                "enable_mint_and_burn": true
-            }))
+            .uri(&format!(
+                "/v1/cep18/install?submit=put&wait=processed&signer={installer}&payment_amount=500000000000&name={name}&symbol=L18&decimals=9&total_supply=1000000000000&wasm=cep18&enable_mint_and_burn=true"
+            ))
             .to_request(),
     )
     .await;
@@ -204,16 +179,9 @@ async fn cep18_put_install_mint_transfer_across_users() {
     let mint = test::call_service(
         &app,
         test::TestRequest::post()
-            .uri("/v1/cep18/mint")
-            .set_json(serde_json::json!({
-                "submit": "put",
-                "wait": "processed",
-                "signer": {"public_key": installer},
-                "payment_amount": "100000000000",
-                "contract_hash": contract_hash,
-                "owner": recipient,
-                "amount": "1000"
-            }))
+            .uri(&format!(
+                "/v1/cep18/mint?submit=put&wait=processed&signer={installer}&payment_amount=100000000000&contract_hash={contract_hash}&owner={recipient}&amount=1000"
+            ))
             .to_request(),
     )
     .await;
@@ -228,16 +196,9 @@ async fn cep18_put_install_mint_transfer_across_users() {
     let transfer = test::call_service(
         &app,
         test::TestRequest::post()
-            .uri("/v1/cep18/transfer")
-            .set_json(serde_json::json!({
-                "submit": "put",
-                "wait": "processed",
-                "signer": {"public_key": recipient},
-                "payment_amount": "100000000000",
-                "contract_hash": contract_hash,
-                "recipient": later,
-                "amount": "10"
-            }))
+            .uri(&format!(
+                "/v1/cep18/transfer?submit=put&wait=processed&signer={recipient}&payment_amount=100000000000&contract_hash={contract_hash}&recipient={later}&amount=10"
+            ))
             .to_request(),
     )
     .await;

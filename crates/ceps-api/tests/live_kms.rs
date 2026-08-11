@@ -55,23 +55,10 @@ async fn cep18_install_make_only_with_kms_public_key() {
     }
 
     let app = test::init_service(create_app(state)).await;
-    let resp = test::call_service(
-        &app,
-        test::TestRequest::post()
-            .uri("/v1/cep18/install")
-            .set_json(serde_json::json!({
-                "submit": "return",
-                "signer": {"public_key": pk},
-                "payment_amount": "500000000000",
-                "name": "LiveKms",
-                "symbol": "LK",
-                "decimals": 9,
-                "total_supply": "1000000000000",
-                "wasm": "cep18"
-            }))
-            .to_request(),
-    )
-    .await;
+    let uri = format!(
+        "/v1/cep18/install?submit=return&signer={pk}&payment_amount=500000000000&name=LiveKms&symbol=LK&decimals=9&total_supply=1000000000000&wasm=cep18"
+    );
+    let resp = test::call_service(&app, test::TestRequest::post().uri(&uri).to_request()).await;
     assert!(
         resp.status().is_success(),
         "make-only install failed: {}",
