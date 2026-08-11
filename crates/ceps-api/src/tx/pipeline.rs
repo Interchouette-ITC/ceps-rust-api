@@ -12,7 +12,10 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PipelineOutcome {
+    /// Deployed or returned transaction hash hex.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub transaction_hash: String,
+    /// Signed Transaction JSON for put_transaction.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

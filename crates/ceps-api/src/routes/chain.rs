@@ -24,6 +24,7 @@ use utoipa::ToSchema;
 #[cfg(feature = "chain-put")]
 #[derive(Deserialize, ToSchema)]
 pub struct PutTransactionBody {
+    /// Signed Transaction JSON for put_transaction.
     pub transaction: Value,
     #[serde(default)]
     pub wait: crate::tx::WaitMode,

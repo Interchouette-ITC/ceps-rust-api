@@ -119,7 +119,7 @@ CEP mutates share an envelope: `submit` (`put` \| `return`), `wait` (`accepted` 
 
 `signer.public_key` is always the **account / initiator** (Casper public-key hex). You pass the public keys your services operate.
 
-This API mirrors **`ceps-client`** feature methods for CEP-18 / 78 / 85 / 95 (except CEP-78 `migrate`, which the client does not expose). Approximate route counts with default `ceps-all`:
+This API mirrors **`ceps-client`** feature methods for CEP-18 / 78 / 85 / 95 (except CEP-78 `migrate`, which the client does not expose). With default `ceps-all` + `swagger-ui`, **OpenAPI `/docs/` lists every Actix CEP route** (request bodies / schemas included). Approximate route counts:
 
 | Area | Routes (order of magnitude) | Notes |
 | ---- | ---------------------------: | ----- |
@@ -128,7 +128,7 @@ This API mirrors **`ceps-client`** feature methods for CEP-18 / 78 / 85 / 95 (ex
 | CEP-85 | ~30+ | Batch queries, modalities, transfer `data` / mint `uri` |
 | CEP-95 | ~20 | Includes Ownable `get-owner` / `transfer-ownership` |
 
-Full path list for this binary: **`/docs/`** (OpenAPI). Account named-key lookup stays on **`ceps-client`** (install/bootstrap helper), not as an HTTP platform route.
+Browse **`/docs/`** (Swagger UI) or **`/docs/ceps-openapi.json`**. Account named-key lookup stays on **`ceps-client`** (install/bootstrap helper), not as an HTTP platform route.
 
 ### Signing backends
 
