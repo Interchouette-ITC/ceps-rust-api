@@ -4,7 +4,7 @@ default-members = ["crates/ceps-api"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "HTTP API for Casper CEP-18, CEP-78, CEP-85, and CEP-95 (optional local or KMS signing)."
 readme = "README.md"

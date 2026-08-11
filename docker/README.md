@@ -38,6 +38,7 @@ docker pull interchouette/ceps-rust-api:latest
 | Org GHCR | `ghcr.io/interchouette-itc/ceps-rust-api-mcp` |
 
 ```bash
+docker pull interchouette/ceps-rust-api-mcp:1.0.0
 docker pull interchouette/ceps-rust-api-mcp:dev
 make mcp-http        # :4790 → http://127.0.0.1:4790/mcp
 make mcp-http-stop

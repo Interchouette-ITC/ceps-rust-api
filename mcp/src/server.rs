@@ -12,7 +12,7 @@ use crate::{client, ops};
 pub struct CepsApiMcp;
 
 // Keep in sync with Cargo.toml `version`.
-#[mcp_server(name = "ceps-rust-api", version = "0.1.0")]
+#[mcp_server(name = "ceps-rust-api", version = "1.0.0")]
 impl CepsApiMcp {
     #[tool(description = "make help + MCP Make↔tool parity map")]
     async fn ceps_api_help(&self) -> ToolOutput {
