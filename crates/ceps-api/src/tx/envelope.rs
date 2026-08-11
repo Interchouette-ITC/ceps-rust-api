@@ -22,17 +22,22 @@ pub enum WaitMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SignerRef {
+    /// Casper account public key hex (initiator / signer identity).
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub public_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MutateEnvelope {
+    /// `put` signs/puts when a signing backend is configured; `return` returns unsigned Transaction JSON.
     #[serde(default)]
     pub submit: SubmitMode,
+    /// After put: wait until accepted or processed.
     #[serde(default)]
     pub wait: WaitMode,
     pub signer: SignerRef,
     #[serde(default = "default_payment")]
+    #[schema(example = "2500000000")]
     pub payment_amount: String,
 }
 

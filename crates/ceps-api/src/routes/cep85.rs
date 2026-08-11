@@ -32,7 +32,11 @@ macro_rules! mutate {
 
 #[derive(Deserialize, ToSchema)]
 pub struct ContractRef {
+    /// Contract hash hex (64 hex chars, no 0x prefix).
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub contract_hash: String,
+    /// Optional package hash hex.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub package_hash: Option<String>,
 }
 
@@ -49,24 +53,56 @@ fn bound(state: &AppState, contract: &ContractRef) -> Result<CEP85Client, ApiErr
 #[derive(Deserialize, ToSchema)]
 pub struct InstallBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
+    /// Canonical wasm id or path under configured wasm roots.
+    #[schema(example = "cep85")]
     pub wasm: String,
+    /// Collection name used for install named-key lookup.
+    #[schema(example = "MyMulti")]
     pub name: String,
+    /// Collection or token URI template.
+    #[schema(example = "https://example.com/meta/{id}.json")]
     pub uri: String,
+    /// Events mode discriminant (0=NoEvents, 1=CES, ...).
+    #[schema(example = 1)]
     pub events_mode: Option<u8>,
+    /// Enable burn entrypoints.
+    #[schema(example = true)]
     pub enable_burn: Option<bool>,
+    /// Admin public keys or account-hashes.
     pub admin_list: Option<Vec<String>>,
+    /// Minter public keys or account-hashes.
     pub minter_list: Option<Vec<String>>,
+    /// Burner keys.
     pub burner_list: Option<Vec<String>>,
+    /// Meta-admin keys.
     pub meta_list: Option<Vec<String>>,
+    /// Optional transfer-filter contract hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub transfer_filter_contract: Option<String>,
+    /// Optional transfer-filter entrypoint name.
+    #[schema(example = "can_transfer")]
     pub transfer_filter_method: Option<String>,
 }
 
 #[utoipa::path(
     post,
     path = "/v1/cep85/install",
-    request_body = InstallBody,
+    request_body(
+        content = InstallBody,
+        example = json!({
+    "submit": "put",
+    "wait": "processed",
+    "signer": {"public_key": "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "payment_amount": "2500000000",
+    "wasm": "cep85",
+    "name": "MyMulti",
+    "uri": "https://example.com/meta/{id}.json",
+    "events_mode": 1,
+    "enable_burn": true
+}),
+    ),
     responses((status = 200, description = "Install pipeline outcome", body = crate::tx::PipelineOutcome)),
     tag = "CEP-85"
 )]
@@ -114,16 +150,32 @@ pub async fn cep85_install(
     mutate!(state, body.envelope, |tx| client.install(&args, &wasm, tx))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct UpgradeBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
+    /// Canonical wasm id or path under configured wasm roots.
+    #[schema(example = "cep85")]
     pub wasm: String,
+    /// Collection name used for install named-key lookup.
+    #[schema(example = "MyToken")]
     pub name: String,
+    /// Optional transfer-filter contract hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub transfer_filter_contract: Option<String>,
+    /// Optional transfer-filter entrypoint name.
+    #[schema(example = "can_transfer")]
     pub transfer_filter_method: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/upgrade",
+    request_body = UpgradeBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/upgrade")]
 pub async fn cep85_upgrade(
     state: web::Data<AppState>,
@@ -150,12 +202,22 @@ pub async fn cep85_upgrade(
 #[derive(Deserialize, ToSchema)]
 pub struct MintBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Recipient account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub recipient: String,
+    /// Token id.
+    #[schema(example = "1")]
     pub id: String,
+    /// Amount as decimal string.
+    #[schema(example = "1000000000")]
     pub amount: String,
+    /// Collection or token URI template.
+    #[schema(example = "https://example.com/meta/{id}.json")]
     pub uri: Option<String>,
 }
 
@@ -182,18 +244,33 @@ pub async fn cep85_mint(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct BatchMintBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Recipient account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub recipient: String,
+    /// Token ids for batch queries.
     pub ids: Vec<String>,
+    /// Batch amounts.
     pub amounts: Vec<String>,
+    /// Collection or token URI template.
+    #[schema(example = "https://example.com/meta/{id}.json")]
     pub uri: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/batch-mint",
+    request_body = BatchMintBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/batch-mint")]
 pub async fn cep85_batch_mint(
     state: web::Data<AppState>,
@@ -215,16 +292,35 @@ pub async fn cep85_batch_mint(
 #[derive(Deserialize, ToSchema)]
 pub struct TransferBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Sender key.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub from: String,
+    /// Recipient key.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub to: String,
+    /// Token id.
+    #[schema(example = "1")]
     pub id: String,
+    /// Amount as decimal string.
+    #[schema(example = "1000000000")]
     pub amount: String,
+    /// Optional calldata as hex string.
+    #[schema(example = "0x")]
     pub data: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/transfer",
+    request_body = TransferBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/transfer")]
 pub async fn cep85_transfer(
     state: web::Data<AppState>,
@@ -243,19 +339,36 @@ pub async fn cep85_transfer(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct BatchTransferBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Sender key.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub from: String,
+    /// Recipient key.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub to: String,
+    /// Token ids for batch queries.
     pub ids: Vec<String>,
+    /// Batch amounts.
     pub amounts: Vec<String>,
+    /// Optional calldata as hex string.
+    #[schema(example = "0x")]
     pub data: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/batch-transfer",
+    request_body = BatchTransferBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/batch-transfer")]
 pub async fn cep85_batch_transfer(
     state: web::Data<AppState>,
@@ -276,17 +389,32 @@ pub async fn cep85_batch_transfer(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct BurnBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Owner account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub owner: String,
+    /// Token id.
+    #[schema(example = "1")]
     pub id: String,
+    /// Amount as decimal string.
+    #[schema(example = "1000000000")]
     pub amount: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/burn",
+    request_body = BurnBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/burn")]
 pub async fn cep85_burn(
     state: web::Data<AppState>,
@@ -302,17 +430,30 @@ pub async fn cep85_burn(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct BatchBurnBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Owner account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub owner: String,
+    /// Token ids for batch queries.
     pub ids: Vec<String>,
+    /// Batch amounts.
     pub amounts: Vec<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/batch-burn",
+    request_body = BatchBurnBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/batch-burn")]
 pub async fn cep85_batch_burn(
     state: web::Data<AppState>,
@@ -330,16 +471,27 @@ pub async fn cep85_batch_burn(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct ApprovalBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Operator account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub operator: String,
     pub approved: bool,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/set-approval-for-all",
+    request_body = ApprovalBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/set-approval-for-all")]
 pub async fn cep85_set_approval_for_all(
     state: web::Data<AppState>,
@@ -354,16 +506,29 @@ pub async fn cep85_set_approval_for_all(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct SetUriBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Collection or token URI template.
+    #[schema(example = "https://example.com/meta/{id}.json")]
     pub uri: String,
+    /// Token id.
+    #[schema(example = "1")]
     pub id: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/set-uri",
+    request_body = SetUriBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/set-uri")]
 pub async fn cep85_set_uri(
     state: web::Data<AppState>,
@@ -378,16 +543,29 @@ pub async fn cep85_set_uri(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct SetTotalSupplyBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Token id.
+    #[schema(example = "1")]
     pub id: String,
+    /// Initial total supply as decimal string (base units).
+    #[schema(example = "1000000000000")]
     pub total_supply: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/set-total-supply-of",
+    request_body = SetTotalSupplyBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/set-total-supply-of")]
 pub async fn cep85_set_total_supply_of(
     state: web::Data<AppState>,
@@ -402,16 +580,26 @@ pub async fn cep85_set_total_supply_of(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct SetTotalSupplyBatchBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Token ids for batch queries.
     pub ids: Vec<String>,
     pub total_supplies: Vec<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/set-total-supply-of-batch",
+    request_body = SetTotalSupplyBatchBody,
+    responses((status = 200, description = "Batch query result")),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/set-total-supply-of-batch")]
 pub async fn cep85_set_total_supply_of_batch(
     state: web::Data<AppState>,
@@ -425,19 +613,33 @@ pub async fn cep85_set_total_supply_of_batch(
         .set_total_supply_of_batch(&ids, &supplies, tx))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct ChangeSecurityBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Admin public keys or account-hashes.
     pub admin_list: Option<Vec<String>>,
+    /// Minter public keys or account-hashes.
     pub minter_list: Option<Vec<String>>,
+    /// Burner keys.
     pub burner_list: Option<Vec<String>>,
+    /// Meta-admin keys.
     pub meta_list: Option<Vec<String>>,
+    /// Keys to clear from security lists.
     pub none_list: Option<Vec<String>>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/change-security",
+    request_body = ChangeSecurityBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/change-security")]
 pub async fn cep85_change_security(
     state: web::Data<AppState>,
@@ -455,16 +657,29 @@ pub async fn cep85_change_security(
     mutate!(state, body.envelope, |tx| client.change_security(&args, tx))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct SetModalitiesBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub envelope: MutateEnvelope,
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Enable burn entrypoints.
+    #[schema(example = true)]
     pub enable_burn: Option<bool>,
+    /// Events mode discriminant (0=NoEvents, 1=CES, ...).
+    #[schema(example = 1)]
     pub events_mode: Option<u8>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/set-modalities",
+    request_body = SetModalitiesBody,
+    responses((status = 200, description = "Pipeline or query outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/set-modalities")]
 pub async fn cep85_set_modalities(
     state: web::Data<AppState>,
@@ -486,6 +701,15 @@ pub async fn cep85_set_modalities(
     ))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/collection-name",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/collection-name")]
 pub async fn cep85_collection_name(
     state: web::Data<AppState>,
@@ -498,6 +722,15 @@ pub async fn cep85_collection_name(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/collection-uri",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/collection-uri")]
 pub async fn cep85_collection_uri(
     state: web::Data<AppState>,
@@ -534,6 +767,16 @@ pub async fn cep85_balance_of(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/supply-of/{id}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("id" = String, Path, description = "Token id"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/supply-of/{id}")]
 pub async fn cep85_supply_of(
     state: web::Data<AppState>,
@@ -547,6 +790,16 @@ pub async fn cep85_supply_of(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/total-supply-of/{id}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("id" = String, Path, description = "Token id"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/total-supply-of/{id}")]
 pub async fn cep85_total_supply_of(
     state: web::Data<AppState>,
@@ -560,6 +813,15 @@ pub async fn cep85_total_supply_of(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/uri",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/uri")]
 pub async fn cep85_uri(
     state: web::Data<AppState>,
@@ -573,11 +835,23 @@ pub async fn cep85_uri(
     })))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct UriQuery {
+    /// Token id.
+    #[schema(example = "1")]
     pub id: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/is-non-fungible/{id}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("id" = String, Path, description = "Token id"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/is-non-fungible/{id}")]
 pub async fn cep85_is_non_fungible(
     state: web::Data<AppState>,
@@ -591,6 +865,17 @@ pub async fn cep85_is_non_fungible(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/is-approved-for-all/{owner}/{operator}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("owner" = String, Path, description = "Owner account or key"),
+        ("operator" = String, Path, description = "Operator account or key"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/is-approved-for-all/{owner}/{operator}")]
 pub async fn cep85_is_approved_for_all(
     state: web::Data<AppState>,
@@ -607,8 +892,11 @@ pub async fn cep85_is_approved_for_all(
 #[derive(Deserialize, ToSchema)]
 pub struct BatchAccountsIdsBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Account keys for batch queries.
     pub accounts: Vec<String>,
+    /// Token ids for batch queries.
     pub ids: Vec<String>,
 }
 
@@ -635,10 +923,19 @@ pub async fn cep85_balance_of_batch(
 #[derive(Deserialize, ToSchema)]
 pub struct BatchIdsBody {
     #[serde(flatten)]
+    #[schema(inline)]
     pub contract: ContractRef,
+    /// Token ids for batch queries.
     pub ids: Vec<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/supply-of-batch",
+    request_body = BatchIdsBody,
+    responses((status = 200, description = "Batch query result")),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/supply-of-batch")]
 pub async fn cep85_supply_of_batch(
     state: web::Data<AppState>,
@@ -651,6 +948,13 @@ pub async fn cep85_supply_of_batch(
     })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/total-supply-of-batch",
+    request_body = BatchIdsBody,
+    responses((status = 200, description = "Batch query result")),
+    tag = "CEP-85"
+)]
 #[post("/v1/cep85/total-supply-of-batch")]
 pub async fn cep85_total_supply_of_batch(
     state: web::Data<AppState>,
@@ -666,6 +970,16 @@ pub async fn cep85_total_supply_of_batch(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/total-fungible-supply/{id}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("id" = String, Path, description = "Token id"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/total-fungible-supply/{id}")]
 pub async fn cep85_total_fungible_supply(
     state: web::Data<AppState>,
@@ -682,6 +996,15 @@ pub async fn cep85_total_fungible_supply(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/enable-burn",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/enable-burn")]
 pub async fn cep85_enable_burn(
     state: web::Data<AppState>,
@@ -694,6 +1017,15 @@ pub async fn cep85_enable_burn(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/events-mode",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/events-mode")]
 pub async fn cep85_events_mode(
     state: web::Data<AppState>,
@@ -708,6 +1040,15 @@ pub async fn cep85_events_mode(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/number-of-minted-tokens",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/number-of-minted-tokens")]
 pub async fn cep85_number_of_minted_tokens(
     state: web::Data<AppState>,
@@ -723,6 +1064,15 @@ pub async fn cep85_number_of_minted_tokens(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/transfer-filter-contract",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/transfer-filter-contract")]
 pub async fn cep85_transfer_filter_contract(
     state: web::Data<AppState>,
@@ -738,6 +1088,15 @@ pub async fn cep85_transfer_filter_contract(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/transfer-filter-method",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/transfer-filter-method")]
 pub async fn cep85_transfer_filter_method(
     state: web::Data<AppState>,
@@ -753,6 +1112,16 @@ pub async fn cep85_transfer_filter_method(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/cep85/{contract_hash}/security-badge/{entity}",
+    params(
+        ("contract_hash" = String, Path, description = "Contract hash hex"),
+        ("entity" = String, Path, description = "Entity key"),
+    ),
+    responses((status = 200, description = "Query result")),
+    tag = "CEP-85"
+)]
 #[get("/v1/cep85/{contract_hash}/security-badge/{entity}")]
 pub async fn cep85_security_badge(
     state: web::Data<AppState>,

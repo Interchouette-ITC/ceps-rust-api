@@ -270,23 +270,82 @@ mod tests {
         #[cfg(feature = "chain-put")]
         assert!(body["paths"].get("/v1/chain/put-transaction").is_some());
         #[cfg(feature = "cep18")]
-        assert!(body["paths"]
-            .get("/v1/cep18/{contract_hash}/security-badge/{account}")
-            .is_some());
+        {
+            assert!(body["paths"].get("/v1/cep18/approve").is_some());
+            assert!(body["paths"].get("/v1/cep18/mint").is_some());
+            assert!(body["paths"]
+                .get("/v1/cep18/{contract_hash}/security-badge/{account}")
+                .is_some());
+        }
+        #[cfg(feature = "cep78")]
+        {
+            assert!(body["paths"]
+                .get("/v1/cep78/{contract_hash}/ownership-mode")
+                .is_some());
+            assert!(body["paths"].get("/v1/cep78/owner-of-session").is_some());
+        }
         #[cfg(feature = "cep85")]
-        assert!(body["paths"].get("/v1/cep85/balance-of-batch").is_some());
+        {
+            assert!(body["paths"].get("/v1/cep85/balance-of-batch").is_some());
+            assert!(body["paths"].get("/v1/cep85/transfer").is_some());
+            assert!(body["paths"]
+                .get("/v1/cep85/{contract_hash}/enable-burn")
+                .is_some());
+        }
         #[cfg(feature = "cep95")]
         {
             assert!(body["paths"]
                 .get("/v1/cep95/{contract_hash}/get-owner")
                 .is_some());
             assert!(body["paths"].get("/v1/cep95/transfer-ownership").is_some());
+            assert!(body["paths"].get("/v1/cep95/mint").is_some());
         }
+        let n = body["paths"].as_object().map(|m| m.len()).unwrap_or(0);
+        // Path count depends on enabled features (CI verify-slices runs thin combos).
+        let expected = 2usize // / + /health
+            + usize::from(cfg!(feature = "chain-put"))
+            + if cfg!(feature = "cep18") { 20 } else { 0 }
+            + if cfg!(feature = "cep78") { 44 } else { 0 }
+            + if cfg!(feature = "cep85") { 32 } else { 0 }
+            + if cfg!(feature = "cep95") { 20 } else { 0 };
+        assert_eq!(
+            n, expected,
+            "OpenAPI path count must match enabled features (got {n}, expected {expected})"
+        );
         assert!(body["paths"].get("/v1/instances/{id}").is_none());
         assert!(body["paths"].get("/v1/wasm").is_none());
         assert!(body["paths"]
             .get("/v1/account/{public_key}/named-key/{name}")
             .is_none());
+        #[cfg(feature = "cep18")]
+        {
+            let install = &body["paths"]["/v1/cep18/install"]["post"];
+            assert!(
+                install["requestBody"]["content"]["application/json"]["example"]["name"]
+                    .as_str()
+                    .is_some(),
+                "cep18 install must ship a requestBody example"
+            );
+            let schemas = &body["components"]["schemas"];
+            assert!(
+                schemas.get("InstallBody").is_some()
+                    || schemas.get("cep18.InstallBody").is_some()
+                    || schemas
+                        .as_object()
+                        .map(|m| m.keys().any(|k| k.contains("InstallBody")))
+                        .unwrap_or(false)
+            );
+            assert!(
+                schemas.get("MutateEnvelope").is_some(),
+                "MutateEnvelope schema must be published"
+            );
+            let env = &schemas["MutateEnvelope"];
+            let props = env
+                .get("properties")
+                .or_else(|| env.get("allOf"))
+                .or_else(|| env.pointer("/properties"));
+            assert!(props.is_some() || env.get("example").is_some() || !env.is_null());
+        }
     }
 
     #[actix_web::test]
