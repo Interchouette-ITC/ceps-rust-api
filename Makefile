@@ -23,11 +23,8 @@ CI ?= 0
 COMPOSE ?= docker/docker-compose.yml
 COMPOSE_MCP ?= docker/docker-compose.mcp.yml
 
-# Sibling tip CEP contract checkouts (override if needed).
-CEP18_PRODUCT ?= $(ROOT)/../cep-18
-CEP78_PRODUCT ?= $(ROOT)/../cep-78-enhanced-nft
-CEP85_PRODUCT ?= $(ROOT)/../cep-1155
-CEP95_PRODUCT ?= $(ROOT)/../cep-95
+# Sibling ceps-rust-ts-client checkout (canonical demo contract WASM pack).
+CEPS_CLIENT_PRODUCT ?= $(ROOT)/../ceps-rust-ts-client
 WASM_DIR := $(ROOT)/tests/wasm
 
 FEATURES ?= ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
@@ -58,7 +55,7 @@ NCTL_USERS ?= 1 2 3
 help:
 	@echo "ceps-rust-api targets"
 	@echo "  make build / test / verify / verify-slices / run"
-	@echo "  make wasm-from-ceps      # stage tip CEP WASMs into tests/wasm/"
+	@echo "  make wasm-from-ceps      # copy client tests/wasm into tests/wasm/"
 	@echo "  make export-local-keys   # print LOCAL_KEYS_JSON (NCTL users; lab only)"
 	@echo "  make run-local           # run with SIGN_BACKEND=local + exported keys"
 	@echo "  make docker-build / docker-build-dev / docker-push-dev"
@@ -109,43 +106,27 @@ pem-ban:
 run:
 	RUST_LOG=$(RUST_LOG) $(CARGO) run -p ceps-rust-api $(CARGO_FEATURES)
 
-# Stage tip contract WASMs from sibling CEP product checkouts into tests/wasm/
-# (same as ceps-rust-ts-client). Commit the result when refreshing the pack.
+# Stage tip contract WASMs from sibling ceps-rust-ts-client/tests/wasm/
+# (client owns tip staging via make wasm-from-ceps). Commit the result when refreshing.
 wasm-from-ceps:
-	@mkdir -p "$(WASM_DIR)"
-	@set -euo pipefail; \
-	for pair in \
-		"$(CEP18_PRODUCT)|cep18" \
-		"$(CEP78_PRODUCT)|cep78" \
-		"$(CEP85_PRODUCT)|cep85" \
-		"$(CEP95_PRODUCT)|cep95"; do \
-		root="$${pair%%|*}"; name="$${pair##*|}"; \
-		if [ ! -d "$$root" ]; then \
-			echo "wasm-from-ceps: skip $$name (missing $$root)"; \
-			continue; \
+	@src="$(CEPS_CLIENT_PRODUCT)/tests/wasm"; \
+	if [ ! -d "$$src" ]; then \
+		echo "wasm-from-ceps: missing $$src (set CEPS_CLIENT_PRODUCT or stage client tests/wasm first)"; \
+		exit 1; \
+	fi; \
+	missing=0; \
+	for name in cep18 cep78 cep85 cep95; do \
+		if [ ! -d "$$src/$$name" ]; then \
+			echo "wasm-from-ceps: missing $$src/$$name"; \
+			missing=1; \
 		fi; \
-		tip="$$root/tests/wasm"; \
-		if [ -d "$$tip" ] && find "$$tip" -type f -name '*.wasm' -print -quit | grep -q .; then \
-			found=$$(find "$$tip" -type f -name '*.wasm' | sort); \
-		else \
-			found=$$( { \
-				find "$$root" -type f -name '*.wasm' \
-					! -path '*/target/debug/*' ! -path '*/node_modules/*' \
-					! -path '*/.git/*' 2>/dev/null; \
-			} | awk 'NF' | while read -r f; do \
-				printf '%s\t%s\n' "$$(stat -c '%Y' "$$f" 2>/dev/null || echo 0)" "$$f"; \
-			done | sort -nr | cut -f2- | awk -F/ '{ base=$$NF; if (!seen[base]++) print }'); \
-		fi; \
-		if [ -z "$$found" ]; then \
-			echo "wasm-from-ceps: no wasm under $$root (build contracts there first)"; \
-			continue; \
-		fi; \
+	done; \
+	if [ "$$missing" -ne 0 ]; then exit 1; fi; \
+	mkdir -p "$(WASM_DIR)"; \
+	for name in cep18 cep78 cep85 cep95; do \
 		rm -rf "$(WASM_DIR)/$$name"; \
-		mkdir -p "$(WASM_DIR)/$$name"; \
-		echo "$$found" | while read -r f; do \
-			cp -f "$$f" "$(WASM_DIR)/$$name/"; \
-			echo "  staged $$name/$$(basename "$$f")"; \
-		done; \
+		cp -a "$$src/$$name" "$(WASM_DIR)/$$name"; \
+		echo "  staged $$name/ from $$src/$$name"; \
 	done; \
 	echo "wasm-from-ceps: done -> $(WASM_DIR)"
 

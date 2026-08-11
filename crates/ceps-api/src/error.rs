@@ -72,6 +72,10 @@ impl ApiError {
             CEPError::WaitFailed(m) => Self::Chain(m),
             CEPError::Sdk(e) => Self::Chain(e.to_string()),
             CEPError::Io(e) => Self::Internal(e.to_string()),
+            CEPError::WasmNotFound { name, tried } => Self::NotFound(format!(
+                "wasm {name} not found (tried {})",
+                tried.join(", ")
+            )),
             CEPError::Other(m) => {
                 let lower = m.to_ascii_lowercase();
                 if lower.contains("parse")

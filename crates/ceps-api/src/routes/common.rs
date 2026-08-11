@@ -3,6 +3,7 @@
 use crate::error::ApiError;
 use crate::state::AppState;
 use ceps_client::CEPClient;
+#[cfg(test)]
 use std::path::{Path, PathBuf};
 
 pub fn cep_core(state: &AppState) -> Result<CEPClient, ApiError> {
@@ -17,51 +18,28 @@ pub fn cep_core(state: &AppState) -> Result<CEPClient, ApiError> {
 
 /// Resolve a wasm name or path under [`Config::wasm_root`](crate::config::Config::wasm_root).
 ///
-/// Accepts:
-/// - absolute/relative filesystem path (contains `/` or `\`)
-/// - file under `wasm_root` (`cep18.wasm` or `cep18/cep18.wasm`)
-/// - short alias (`cep18` → `wasm_root/cep18/cep18.wasm`)
+/// Accepts the same aliases as [`ceps_client::wasm::resolve_path`]: absolute/relative
+/// filesystem path, file under the root, or short alias (`cep18` → `cep18/cep18.wasm`).
 pub fn resolve_wasm(state: &AppState, wasm_name: &str) -> Result<Vec<u8>, ApiError> {
-    let path = resolve_wasm_path(&state.config.wasm_root, wasm_name)?;
-    std::fs::read(&path).map_err(|e| ApiError::NotFound(format!("wasm {}: {e}", path.display())))
+    ceps_client::wasm::load_from(&state.config.wasm_root, wasm_name).map_err(map_wasm_err)
 }
 
+#[cfg(test)]
 fn resolve_wasm_path(root: &Path, wasm_name: &str) -> Result<PathBuf, ApiError> {
-    let name = wasm_name.trim();
-    if name.is_empty() {
-        return Err(ApiError::BadRequest("wasm name is empty".into()));
-    }
+    ceps_client::wasm::resolve_path(root, wasm_name).map_err(map_wasm_err)
+}
 
-    let mut candidates: Vec<PathBuf> = Vec::new();
-    if name.contains('/') || name.contains('\\') {
-        let as_path = PathBuf::from(name);
-        candidates.push(as_path.clone());
-        if as_path.is_relative() {
-            candidates.push(root.join(&as_path));
-        }
-    } else {
-        candidates.push(root.join(name));
-        if !name.ends_with(".wasm") {
-            candidates.push(root.join(format!("{name}.wasm")));
-            candidates.push(root.join(name).join(format!("{name}.wasm")));
-        }
+fn map_wasm_err(err: ceps_client::CEPError) -> ApiError {
+    use ceps_client::CEPError;
+    match err {
+        CEPError::InvalidArgument(m) => ApiError::BadRequest(m),
+        CEPError::WasmNotFound { name, tried } => ApiError::NotFound(format!(
+            "wasm {name} not found under roots (tried {})",
+            tried.join(", ")
+        )),
+        CEPError::Io(e) => ApiError::NotFound(format!("wasm I/O: {e}")),
+        other => ApiError::from_cep(other),
     }
-
-    for path in &candidates {
-        if path.is_file() {
-            return Ok(path.clone());
-        }
-    }
-
-    Err(ApiError::NotFound(format!(
-        "wasm {name} not found under {} (tried {})",
-        root.display(),
-        candidates
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    )))
 }
 
 pub fn bind_contract(

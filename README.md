@@ -257,7 +257,7 @@ Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. 
 | `make docker-build` / `docker-build-dev` | Image (parent context; sibling client + rustSDK)              |
 | `make docker-push-dev`                   | Push API `:dev` to Hub + GHCR                                 |
 | `make docker-run` / `docker-run-kms`     | Compose up                                                    |
-| `make wasm-from-ceps`                    | Stage tip CEP WASMs from sibling checkouts into `tests/wasm/` |
+| `make wasm-from-ceps`                    | Copy client `tests/wasm/` pack into this repo's `tests/wasm/` |
 | `make export-local-keys`                 | Print `LOCAL_KEYS_JSON` (NCTL users 1 2 3 by default)         |
 | `make run-local`                         | Lab run with `SIGN_BACKEND=local` + exported keys             |
 | `scripts/export-nctl-local-keys.sh`      | Same export (ops script)                                      |
