@@ -1,0 +1,88 @@
+name: CI/CD Image dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "docker/Dockerfile"
+      - "docker/docker-compose.yml"
+      - "Makefile"
+      - ".github/workflows/docker-build-push-dev.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FEATURES: ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
+
+jobs:
+  build-push-dev:
+    name: Build and Push ceps-rust-api :dev
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ceps-rust-api
+
+    steps:
+      - name: Checkout ceps-rust-api
+        uses: actions/checkout@v4
+        with:
+          path: ceps-rust-api
+
+      - name: Checkout ceps-rust-ts-client
+        uses: actions/checkout@v4
+        with:
+          repository: Interchouette-ITC/ceps-rust-ts-client
+          path: ceps-rust-ts-client
+          ref: dev
+
+      - name: Checkout casper-rust-wasm-sdk
+        uses: actions/checkout@v4
+        with:
+          repository: casper-ecosystem/casper-rust-wasm-sdk
+          path: rustSDK
+          ref: dev
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set up Make
+        run: sudo apt-get install -y make
+
+      - name: Build Docker image :dev
+        run: make docker-build-dev FEATURES=${{ env.FEATURES }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push :dev to Docker Hub
+        run: make docker-push-dev-hub
+
+      - name: Log in to GHCR (personal)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Push :dev to personal GHCR
+        run: make docker-push-dev-ghcr-personal
+
+      - name: Log in to GHCR (Interchouette / ITC)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME_ITC }}
+          password: ${{ secrets.GHCR_PAT_ITC }}
+
+      - name: Push :dev to ghcr.io/interchouette and interchouette-itc
+        run: make docker-push-dev-ghcr-itc

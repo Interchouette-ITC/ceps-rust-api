@@ -189,7 +189,7 @@ CI covers KMS **sign** via wiremock. Live KMS create+fund is a **pre-test** step
 
 ## Docker
 
-Image: `interchouette/ceps-rust-api` (build locally with `make docker-build`). Details: [`docker/README.md`](docker/README.md).
+API image: `interchouette/ceps-rust-api` (`:dev`, `:latest`, version tags). Build locally with `make docker-build` / `make docker-build-dev` (context = parent dir; needs sibling `ceps-rust-ts-client` + `rustSDK`). Publish via `make docker-push-dev` or CI. Details: [`docker/README.md`](docker/README.md).
 
 ```bash
 # API only (point CEPS_RPC_URL at a reachable node)
@@ -251,19 +251,20 @@ Ops only: `scripts/fund-kms-from-nctl.sh`, `scripts/export-nctl-local-keys.sh`. 
 
 ## Make targets
 
-| Target                               | Purpose                                                            |
-| ------------------------------------ | ------------------------------------------------------------------ |
-| `make build` / `run`                 | Debug binary                                                       |
-| `make verify`                        | fmt, clippy, pem-ban, tests                                        |
-| `make verify-slices`                 | CI feature-slice builds                                            |
-| `make docker-build`                  | Image (build context = parent dir; needs sibling client + rustSDK) |
-| `make docker-run` / `docker-run-kms` | Compose up                                                         |
-| `make wasm-from-ceps`                | Stage tip CEP WASMs from sibling checkouts into `tests/wasm/`      |
-| `make export-local-keys`             | Print `LOCAL_KEYS_JSON` (NCTL users 1 2 3 by default)              |
-| `make run-local`                     | Lab run with `SIGN_BACKEND=local` + exported keys                  |
-| `scripts/export-nctl-local-keys.sh`  | Same export (ops script)                                           |
-| `scripts/fund-kms-from-nctl.sh`      | Ops: fund a KMS public key from NCTL faucet                        |
-| `make version-show`                  | Crate / image tag                                                  |
+| Target                                   | Purpose                                                       |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| `make build` / `run`                     | Debug binary                                                  |
+| `make verify`                            | fmt, clippy, pem-ban, tests                                   |
+| `make verify-slices`                     | CI feature-slice builds                                       |
+| `make docker-build` / `docker-build-dev` | Image (parent context; sibling client + rustSDK)              |
+| `make docker-push-dev`                   | Push API `:dev` to Hub + GHCR                                 |
+| `make docker-run` / `docker-run-kms`     | Compose up                                                    |
+| `make wasm-from-ceps`                    | Stage tip CEP WASMs from sibling checkouts into `tests/wasm/` |
+| `make export-local-keys`                 | Print `LOCAL_KEYS_JSON` (NCTL users 1 2 3 by default)         |
+| `make run-local`                         | Lab run with `SIGN_BACKEND=local` + exported keys             |
+| `scripts/export-nctl-local-keys.sh`      | Same export (ops script)                                      |
+| `scripts/fund-kms-from-nctl.sh`          | Ops: fund a KMS public key from NCTL faucet                   |
+| `make version-show`                      | Crate / image tag                                             |
 
 ## License
 

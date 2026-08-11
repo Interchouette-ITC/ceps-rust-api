@@ -6,6 +6,9 @@ SHELL := /bin/bash
 ROOT := $(CURDIR)
 APP_NAME ?= ceps-rust-api
 HUB_IMAGE ?= interchouette/ceps-rust-api
+GHCR_PERSONAL_IMAGE ?= ghcr.io/groussac/ceps-rust-api
+GHCR_WORKER_IMAGE ?= ghcr.io/interchouette/ceps-rust-api
+GHCR_ORG_IMAGE ?= ghcr.io/interchouette-itc/ceps-rust-api
 TAG ?= latest
 APP_VERSION ?= $(shell awk '/^version = /{gsub(/"/, "", $$3); print $$3; exit}' Cargo.toml)
 MCP_NAME ?= ceps-rust-api-mcp
@@ -38,8 +41,11 @@ CLIPPY_FLAGS := -D warnings -D clippy::all
 .DEFAULT_GOAL := help
 
 .PHONY: help build build-release check test verify verify-slices lint format format-check clippy \
-	docker-build docker-run docker-run-kms docker-stop version-show run pem-ban \
+	docker-build docker-build-dev docker-run docker-run-kms docker-stop version-show run pem-ban \
 	export-local-keys run-local wasm-from-ceps \
+	docker-push-dev-hub docker-push-dev-ghcr-personal docker-push-dev-ghcr-itc docker-push-dev \
+	docker-push-release-hub docker-push-release-ghcr-personal docker-push-release-ghcr-itc \
+	docker-push-release \
 	mcp-build mcp-docker-build mcp-docker-build-dev \
 	mcp-docker-push-dev-hub mcp-docker-push-dev-ghcr-personal mcp-docker-push-dev-ghcr-itc \
 	mcp-docker-push-dev \
@@ -55,6 +61,7 @@ help:
 	@echo "  make wasm-from-ceps      # stage tip CEP WASMs into tests/wasm/"
 	@echo "  make export-local-keys   # print LOCAL_KEYS_JSON (NCTL users; lab only)"
 	@echo "  make run-local           # run with SIGN_BACKEND=local + exported keys"
+	@echo "  make docker-build / docker-build-dev / docker-push-dev"
 	@echo "  make mcp-build / mcp-docker-build-dev / mcp-http / run-mcp"
 	@echo "  Features: FEATURES=$(FEATURES)"
 	@echo "  SIGN_BACKEND: none (default) | local (lab) | local-production | kms (recommended)"
@@ -160,6 +167,63 @@ docker-build:
 		--build-arg FEATURES=$(FEATURES) \
 		-t $(HUB_IMAGE):$(TAG) -t $(HUB_IMAGE):$(APP_VERSION) \
 		..
+
+docker-build-dev:
+	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -f $(DOCKERFILE) \
+		--build-arg FEATURES=$(FEATURES) \
+		-t $(HUB_IMAGE):dev \
+		-t $(GHCR_PERSONAL_IMAGE):dev \
+		-t $(GHCR_WORKER_IMAGE):dev \
+		-t $(GHCR_ORG_IMAGE):dev \
+		..
+
+docker-push-dev-hub:
+	docker push $(HUB_IMAGE):dev
+
+docker-push-dev-ghcr-personal:
+	docker push $(GHCR_PERSONAL_IMAGE):dev
+
+docker-push-dev-ghcr-itc:
+	docker push $(GHCR_WORKER_IMAGE):dev
+	docker push $(GHCR_ORG_IMAGE):dev
+
+docker-push-dev:
+	@if [ "$(CI)" = "1" ]; then \
+		echo "Use docker-push-dev-hub / docker-push-dev-ghcr-* in CI"; \
+		exit 1; \
+	fi
+	@echo "Logging in to Docker Hub..."; \
+	docker login || { echo "Docker Hub login failed"; exit 1; }
+	$(MAKE) docker-push-dev-hub
+	@echo "Logging in to GHCR (personal)..."; \
+	docker login ghcr.io || { echo "Skipping personal GHCR"; exit 0; }
+	$(MAKE) docker-push-dev-ghcr-personal
+	@echo "Logging in to GHCR (org)..."; \
+	docker login ghcr.io || { echo "Skipping org GHCR"; exit 0; }
+	$(MAKE) docker-push-dev-ghcr-itc
+
+docker-push-release-hub:
+	docker push $(HUB_IMAGE):$(APP_VERSION)
+	docker push $(HUB_IMAGE):latest
+
+docker-push-release-ghcr-personal:
+	docker tag $(HUB_IMAGE):$(APP_VERSION) $(GHCR_PERSONAL_IMAGE):$(APP_VERSION)
+	docker tag $(HUB_IMAGE):latest $(GHCR_PERSONAL_IMAGE):latest
+	docker push $(GHCR_PERSONAL_IMAGE):$(APP_VERSION)
+	docker push $(GHCR_PERSONAL_IMAGE):latest
+
+docker-push-release-ghcr-itc:
+	docker tag $(HUB_IMAGE):$(APP_VERSION) $(GHCR_WORKER_IMAGE):$(APP_VERSION)
+	docker tag $(HUB_IMAGE):latest $(GHCR_WORKER_IMAGE):latest
+	docker tag $(HUB_IMAGE):$(APP_VERSION) $(GHCR_ORG_IMAGE):$(APP_VERSION)
+	docker tag $(HUB_IMAGE):latest $(GHCR_ORG_IMAGE):latest
+	docker push $(GHCR_WORKER_IMAGE):$(APP_VERSION)
+	docker push $(GHCR_WORKER_IMAGE):latest
+	docker push $(GHCR_ORG_IMAGE):$(APP_VERSION)
+	docker push $(GHCR_ORG_IMAGE):latest
+
+docker-push-release: docker-push-release-hub \
+	docker-push-release-ghcr-personal docker-push-release-ghcr-itc
 
 docker-run:
 	docker compose -f $(COMPOSE) up -d

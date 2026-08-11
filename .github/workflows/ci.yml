@@ -140,16 +140,32 @@ jobs:
             -p 11101-11105:11101-11105 \
             -p 18101-18105:18101-18105 \
             interchouette/casper-nctl-2-docker:dev
+          echo "Waiting for RPC on :11101..."
           for i in $(seq 1 90); do
             if curl -sS -m 2 -X POST http://127.0.0.1:11101/rpc \
               -H 'content-type: application/json' \
               -d '{"jsonrpc":"2.0","id":1,"method":"info_get_status","params":[]}' \
               | grep -q api_version; then
-              echo "rpc up"; exit 0
+              echo "rpc up"
+              # RPC answers before genesis; puts fail with "blockchain is empty" until then.
+              # Same cadence as rustSDK CI: wait up to 45s after port is open.
+              echo "Wait 45s for nctl to boot genesis / create keys"
+              sleep 45
+              exit 0
             fi
             sleep 5
           done
           echo "rpc timeout"; exit 1
+      - name: Wait for SSE
+        run: |
+          echo "Waiting for SSE on :18101/events..."
+          for i in $(seq 1 30); do
+            if curl -sS -m 2 http://127.0.0.1:18101/events | grep -q ApiVersion; then
+              echo "sse up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "sse timeout"; exit 1
       - name: Check committed CEP contract WASMs
         run: test -f tests/wasm/cep18/cep18.wasm
       - name: Export LOCAL_KEYS_JSON (ops)
