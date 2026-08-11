@@ -3,9 +3,9 @@
 use crate::error::ApiError;
 use crate::routes::common::{bind_contract, cep_core, resolve_wasm};
 use crate::routes::extractors::{
-    opt_list, parse_events_mode, AllowanceResponse, BadgeResponse, BalanceResponse, ContractQuery,
-    DecimalsResponse, EnabledResponse, EventsModeResponse, MutateQuery, NameResponse,
-    SymbolResponse, TotalSupplyResponse,
+    opt_list, AllowanceResponse, BadgeResponse, BalanceResponse, ContractQuery, DecimalsResponse,
+    EnabledResponse, EventsModeResponse, MutateQuery, NameResponse, SymbolResponse,
+    TotalSupplyResponse,
 };
 use crate::state::AppState;
 use crate::tx::{build_transaction_params, finalize_call};
@@ -36,11 +36,8 @@ macro_rules! mutate {
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct InstallQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct InstallOp {
     /// Install/upgrade named-key name (becomes cep18_contract_hash_{name}).
     #[param(example = "MyToken")]
     pub name: String,
@@ -56,10 +53,10 @@ pub struct InstallQuery {
     /// Canonical wasm id or path under configured wasm roots.
     #[param(example = "cep18")]
     pub wasm: String,
-    /// Events mode name or u8 (`NoEvents`|`CES`|`Native`|`NativeBytes` or 0-3).
+    /// Events mode (`NoEvents`|`CES`|`Native`|`NativeBytes`).
     #[serde(default)]
-    #[param(example = "CES")]
-    pub events_mode: Option<String>,
+    #[param(inline)]
+    pub events_mode: Option<crate::routes::extractors::EventsModeParam>,
     /// Enable mint and burn entrypoints.
     #[serde(default)]
     #[param(example = true)]
@@ -71,6 +68,36 @@ pub struct InstallQuery {
     #[serde(default)]
     pub minter_list: Vec<String>,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct InstallQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    /// Install/upgrade named-key name (becomes cep18_contract_hash_{name}).
+    pub name: String,
+    /// Token ticker symbol.
+    pub symbol: String,
+    /// Token decimals.
+    pub decimals: u8,
+    /// Initial total supply as decimal string (base units).
+    pub total_supply: String,
+    /// Canonical wasm id or path under configured wasm roots.
+    pub wasm: String,
+    /// Events mode (`NoEvents`|`CES`|`Native`|`NativeBytes`).
+    #[serde(default)]
+    pub events_mode: Option<crate::routes::extractors::EventsModeParam>,
+    /// Enable mint and burn entrypoints.
+    #[serde(default)]
+    pub enable_mint_and_burn: Option<bool>,
+    /// Admin public keys or account-hashes (repeat query key).
+    #[serde(default)]
+    pub admin_list: Vec<String>,
+    /// Minter public keys or account-hashes (repeat query key).
+    #[serde(default)]
+    pub minter_list: Vec<String>,
+}
+
+crate::impl_flat_query_params!(InstallQuery, mutate, InstallOp);
 
 #[utoipa::path(
     post,
@@ -89,8 +116,8 @@ pub async fn cep18_install(
     let client = client(&state)?;
     let wasm = resolve_wasm(&state, &q.wasm)?;
     let mut args = InstallArgs::new(&q.name, &q.symbol, q.decimals, &q.total_supply);
-    if let Some(ref m) = q.events_mode {
-        args.events_mode = Some(parse_events_mode(m)?);
+    if let Some(m) = q.events_mode {
+        args.events_mode = Some(m.to_client());
     }
     if let Some(v) = q.enable_mint_and_burn {
         args = args.with_mint_and_burn(v);
@@ -105,19 +132,29 @@ pub async fn cep18_install(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct UpgradeQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct UpgradeOp {
     #[param(example = "MyToken")]
     pub name: String,
     #[param(example = "cep18")]
     pub wasm: String,
     #[serde(default)]
     #[param(example = "CES")]
-    pub events_mode: Option<String>,
+    #[param(inline)]
+    pub events_mode: Option<crate::routes::extractors::EventsModeParam>,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct UpgradeQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    pub name: String,
+    pub wasm: String,
+    #[serde(default)]
+    pub events_mode: Option<crate::routes::extractors::EventsModeParam>,
+}
+
+crate::impl_flat_query_params!(UpgradeQuery, mutate, UpgradeOp);
 
 #[utoipa::path(
     post,
@@ -136,26 +173,32 @@ pub async fn cep18_upgrade(
     let client = client(&state)?;
     let wasm = resolve_wasm(&state, &q.wasm)?;
     let mut args = UpgradeArgs::new(&q.name);
-    if let Some(ref m) = q.events_mode {
-        args.events_mode = Some(parse_events_mode(m)?);
+    if let Some(m) = q.events_mode {
+        args.events_mode = Some(m.to_client());
     }
     mutate!(state, envelope, |tx| client.upgrade(&args, &wasm, tx))
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct TransferQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct TransferOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub recipient: String,
     #[param(example = "1000000000")]
     pub amount: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct TransferQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub recipient: String,
+    pub amount: String,
+}
+
+crate::impl_flat_query_params!(TransferQuery, mutate_contract, TransferOp);
 
 #[utoipa::path(
     post,
@@ -185,14 +228,8 @@ pub async fn cep18_transfer(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct TransferFromQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct TransferFromOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub owner: String,
     #[param(example = "01bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")]
@@ -200,6 +237,19 @@ pub struct TransferFromQuery {
     #[param(example = "1000000000")]
     pub amount: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct TransferFromQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub owner: String,
+    pub recipient: String,
+    pub amount: String,
+}
+
+crate::impl_flat_query_params!(TransferFromQuery, mutate_contract, TransferFromOp);
 
 #[utoipa::path(
     post,
@@ -230,19 +280,25 @@ pub async fn cep18_transfer_from(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct ApproveQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct ApproveOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub spender: String,
     #[param(example = "1000000000")]
     pub amount: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct ApproveQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub spender: String,
+    pub amount: String,
+}
+
+crate::impl_flat_query_params!(ApproveQuery, mutate_contract, ApproveOp);
 
 #[utoipa::path(
     post,
@@ -317,19 +373,25 @@ pub async fn cep18_decrease_allowance(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct MintBurnQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct MintBurnOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub owner: String,
     #[param(example = "1000000000")]
     pub amount: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct MintBurnQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub owner: String,
+    pub amount: String,
+}
+
+crate::impl_flat_query_params!(MintBurnQuery, mutate_contract, MintBurnOp);
 
 #[utoipa::path(
     post,
@@ -378,17 +440,23 @@ pub async fn cep18_burn(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct ChangeEventsOp {
+    #[param(example = "CES")]
+    #[param(inline)]
+    pub events_mode: crate::routes::extractors::EventsModeParam,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct ChangeEventsQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
-    #[param(example = "CES")]
-    pub events_mode: String,
+    pub events_mode: crate::routes::extractors::EventsModeParam,
 }
+
+crate::impl_flat_query_params!(ChangeEventsQuery, mutate_contract, ChangeEventsOp);
 
 #[utoipa::path(
     post,
@@ -410,18 +478,26 @@ pub async fn cep18_change_events_mode(
         &q.contract.contract_hash,
         q.contract.package_hash.as_deref(),
     )?;
-    let mode = parse_events_mode(&q.events_mode)?;
+    let mode = q.events_mode.to_client();
     mutate!(state, envelope, |tx| client.change_events_mode(mode, tx))
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct ChangeSecurityOp {
+    #[serde(default)]
+    pub admin_list: Vec<String>,
+    #[serde(default)]
+    pub minter_list: Vec<String>,
+    #[serde(default)]
+    pub none_list: Vec<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct ChangeSecurityQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     #[serde(default)]
     pub admin_list: Vec<String>,
@@ -430,6 +506,8 @@ pub struct ChangeSecurityQuery {
     #[serde(default)]
     pub none_list: Vec<String>,
 }
+
+crate::impl_flat_query_params!(ChangeSecurityQuery, mutate_contract, ChangeSecurityOp);
 
 #[utoipa::path(
     post,

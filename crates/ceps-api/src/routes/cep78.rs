@@ -2,17 +2,11 @@
 
 use crate::error::ApiError;
 use crate::routes::common::{bind_contract, cep_core, resolve_wasm};
-use crate::routes::extractors::{
-    json_value_to_string, opt_list, parse_events_mode78, ContractQuery, MutateQuery,
-};
+use crate::routes::extractors::{json_value_to_string, opt_list, ContractQuery, MutateQuery};
 use crate::state::AppState;
 use crate::tx::{build_transaction_params, finalize_call};
 use actix_web::{get, post, web, HttpResponse};
-use ceps_client::cep78::{
-    BurnMode, HolderMode, IdentifierMode, InstallArgs, MetadataMutability, MintingMode,
-    NamedKeyConventionMode, NftKind, NftMetadataKind, OwnerReverseLookupMode, OwnershipMode,
-    SetVariablesArgs, TokenIdentifier, UpgradeArgs, WhitelistMode,
-};
+use ceps_client::cep78::{InstallArgs, SetVariablesArgs, TokenIdentifier, UpgradeArgs};
 use ceps_client::CEP78Client;
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
@@ -35,102 +29,6 @@ macro_rules! mutate {
         let out = finalize_call(&$state, &core, &$envelope, result).await?;
         Ok::<_, ApiError>(HttpResponse::Ok().json(out))
     }};
-}
-
-fn parse_ownership(s: &str) -> Result<OwnershipMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "minter" => Ok(OwnershipMode::Minter),
-        "1" | "assigned" => Ok(OwnershipMode::Assigned),
-        "2" | "transferable" => Ok(OwnershipMode::Transferable),
-        _ => Err(ApiError::BadRequest(format!("invalid ownership_mode {s}"))),
-    }
-}
-fn parse_nft_metadata_kind(s: &str) -> Result<NftMetadataKind, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "cep78" => Ok(NftMetadataKind::CEP78),
-        "1" | "nft721" => Ok(NftMetadataKind::Nft721),
-        "2" | "raw" => Ok(NftMetadataKind::Raw),
-        "3" | "customvalidated" | "custom_validated" => Ok(NftMetadataKind::CustomValidated),
-        _ => Err(ApiError::BadRequest(format!(
-            "invalid nft_metadata_kind {s}"
-        ))),
-    }
-}
-fn parse_identifier_mode(s: &str) -> Result<IdentifierMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "ordinal" => Ok(IdentifierMode::Ordinal),
-        "1" | "hash" => Ok(IdentifierMode::Hash),
-        _ => Err(ApiError::BadRequest(format!("invalid identifier_mode {s}"))),
-    }
-}
-fn parse_metadata_mutability(s: &str) -> Result<MetadataMutability, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "immutable" => Ok(MetadataMutability::Immutable),
-        "1" | "mutable" => Ok(MetadataMutability::Mutable),
-        _ => Err(ApiError::BadRequest(format!(
-            "invalid metadata_mutability {s}"
-        ))),
-    }
-}
-fn parse_nft_kind(s: &str) -> Result<NftKind, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "physical" => Ok(NftKind::Physical),
-        "1" | "digital" => Ok(NftKind::Digital),
-        "2" | "virtual" => Ok(NftKind::Virtual),
-        _ => Err(ApiError::BadRequest(format!("invalid nft_kind {s}"))),
-    }
-}
-fn parse_minting_mode(s: &str) -> Result<MintingMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "installer" => Ok(MintingMode::Installer),
-        "1" | "public" => Ok(MintingMode::Public),
-        "2" | "acl" => Ok(MintingMode::Acl),
-        _ => Err(ApiError::BadRequest(format!("invalid minting_mode {s}"))),
-    }
-}
-fn parse_burn_mode(s: &str) -> Result<BurnMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "burnable" => Ok(BurnMode::Burnable),
-        "1" | "nonburnable" | "non_burnable" => Ok(BurnMode::NonBurnable),
-        _ => Err(ApiError::BadRequest(format!("invalid burn_mode {s}"))),
-    }
-}
-fn parse_whitelist_mode(s: &str) -> Result<WhitelistMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "unlocked" => Ok(WhitelistMode::Unlocked),
-        "1" | "locked" => Ok(WhitelistMode::Locked),
-        _ => Err(ApiError::BadRequest(format!("invalid whitelist_mode {s}"))),
-    }
-}
-fn parse_holder_mode(s: &str) -> Result<HolderMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "accounts" => Ok(HolderMode::Accounts),
-        "1" | "contracts" => Ok(HolderMode::Contracts),
-        "2" | "mixed" => Ok(HolderMode::Mixed),
-        _ => Err(ApiError::BadRequest(format!("invalid holder_mode {s}"))),
-    }
-}
-fn parse_owner_reverse_lookup(s: &str) -> Result<OwnerReverseLookupMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "nolookup" | "no_lookup" => Ok(OwnerReverseLookupMode::NoLookup),
-        "1" | "complete" => Ok(OwnerReverseLookupMode::Complete),
-        "2" | "transfersonly" | "transfers_only" => Ok(OwnerReverseLookupMode::TransfersOnly),
-        _ => Err(ApiError::BadRequest(format!(
-            "invalid owner_reverse_lookup_mode {s}"
-        ))),
-    }
-}
-fn parse_named_key_convention(s: &str) -> Result<NamedKeyConventionMode, ApiError> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "0" | "derivedfromcollectionname" | "derived_from_collection_name" => {
-            Ok(NamedKeyConventionMode::DerivedFromCollectionName)
-        }
-        "1" | "v1_0standard" | "v1_0_standard" => Ok(NamedKeyConventionMode::V1_0Standard),
-        "2" | "v1_0custom" | "v1_0_custom" => Ok(NamedKeyConventionMode::V1_0Custom),
-        _ => Err(ApiError::BadRequest(format!(
-            "invalid named_key_convention {s}"
-        ))),
-    }
 }
 
 fn token_from(id: Option<&str>, hash: Option<&str>) -> Result<TokenIdentifier, ApiError> {
@@ -158,11 +56,8 @@ fn bound(state: &AppState, contract: &ContractQuery) -> Result<CEP78Client, ApiE
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct InstallQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct InstallOp {
     #[param(example = "cep78")]
     pub wasm: String,
     #[param(example = "MyNFTs")]
@@ -173,17 +68,23 @@ pub struct InstallQuery {
     pub total_token_supply: u64,
     #[serde(default = "default_ownership")]
     #[param(example = "Transferable")]
-    pub ownership_mode: String,
+    #[param(inline)]
+    pub ownership_mode: crate::routes::extractors::OwnershipModeParam,
     #[serde(default)]
-    pub nft_metadata_kind: Option<String>,
+    #[param(inline)]
+    pub nft_metadata_kind: Option<crate::routes::extractors::NftMetadataKindParam>,
     #[serde(default)]
-    pub identifier_mode: Option<String>,
+    #[param(inline)]
+    pub identifier_mode: Option<crate::routes::extractors::IdentifierModeParam>,
     #[serde(default)]
-    pub metadata_mutability: Option<String>,
+    #[param(inline)]
+    pub metadata_mutability: Option<crate::routes::extractors::MetadataMutabilityParam>,
     #[serde(default)]
-    pub nft_kind: Option<String>,
+    #[param(inline)]
+    pub nft_kind: Option<crate::routes::extractors::NftKindParam>,
     #[serde(default)]
-    pub minting_mode: Option<String>,
+    #[param(inline)]
+    pub minting_mode: Option<crate::routes::extractors::MintingModeParam>,
     #[serde(default)]
     pub allow_minting: Option<bool>,
     #[serde(default)]
@@ -191,28 +92,86 @@ pub struct InstallQuery {
     #[serde(default)]
     pub package_operator_mode: Option<bool>,
     #[serde(default)]
-    pub whitelist_mode: Option<String>,
+    #[param(inline)]
+    pub whitelist_mode: Option<crate::routes::extractors::WhitelistModeParam>,
     #[serde(default)]
-    pub holder_mode: Option<String>,
+    #[param(inline)]
+    pub holder_mode: Option<crate::routes::extractors::HolderModeParam>,
     #[serde(default)]
     pub acl_package_mode: Option<bool>,
     #[serde(default)]
     pub acl_whitelist: Vec<String>,
     #[serde(default)]
-    pub burn_mode: Option<String>,
+    #[param(inline)]
+    pub burn_mode: Option<crate::routes::extractors::BurnModeParam>,
     #[serde(default)]
-    pub owner_reverse_lookup_mode: Option<String>,
+    #[param(inline)]
+    pub owner_reverse_lookup_mode: Option<crate::routes::extractors::OwnerReverseLookupModeParam>,
     #[serde(default)]
-    pub named_key_convention: Option<String>,
+    #[param(inline)]
+    pub named_key_convention: Option<crate::routes::extractors::NamedKeyConventionModeParam>,
     #[serde(default)]
     pub access_key_name: Option<String>,
     #[serde(default)]
     pub hash_key_name: Option<String>,
     #[serde(default)]
-    pub events_mode: Option<String>,
+    #[param(inline)]
+    pub events_mode: Option<crate::routes::extractors::EventsMode78Param>,
     #[serde(default)]
     pub transfer_filter_contract: Option<String>,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct InstallQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    pub wasm: String,
+    pub collection_name: String,
+    pub collection_symbol: String,
+    pub total_token_supply: u64,
+    #[serde(default = "default_ownership")]
+    pub ownership_mode: crate::routes::extractors::OwnershipModeParam,
+    #[serde(default)]
+    pub nft_metadata_kind: Option<crate::routes::extractors::NftMetadataKindParam>,
+    #[serde(default)]
+    pub identifier_mode: Option<crate::routes::extractors::IdentifierModeParam>,
+    #[serde(default)]
+    pub metadata_mutability: Option<crate::routes::extractors::MetadataMutabilityParam>,
+    #[serde(default)]
+    pub nft_kind: Option<crate::routes::extractors::NftKindParam>,
+    #[serde(default)]
+    pub minting_mode: Option<crate::routes::extractors::MintingModeParam>,
+    #[serde(default)]
+    pub allow_minting: Option<bool>,
+    #[serde(default)]
+    pub operator_burn_mode: Option<bool>,
+    #[serde(default)]
+    pub package_operator_mode: Option<bool>,
+    #[serde(default)]
+    pub whitelist_mode: Option<crate::routes::extractors::WhitelistModeParam>,
+    #[serde(default)]
+    pub holder_mode: Option<crate::routes::extractors::HolderModeParam>,
+    #[serde(default)]
+    pub acl_package_mode: Option<bool>,
+    #[serde(default)]
+    pub acl_whitelist: Vec<String>,
+    #[serde(default)]
+    pub burn_mode: Option<crate::routes::extractors::BurnModeParam>,
+    #[serde(default)]
+    pub owner_reverse_lookup_mode: Option<crate::routes::extractors::OwnerReverseLookupModeParam>,
+    #[serde(default)]
+    pub named_key_convention: Option<crate::routes::extractors::NamedKeyConventionModeParam>,
+    #[serde(default)]
+    pub access_key_name: Option<String>,
+    #[serde(default)]
+    pub hash_key_name: Option<String>,
+    #[serde(default)]
+    pub events_mode: Option<crate::routes::extractors::EventsMode78Param>,
+    #[serde(default)]
+    pub transfer_filter_contract: Option<String>,
+}
+
+crate::impl_flat_query_params!(InstallQuery, mutate, InstallOp);
 
 #[derive(Debug, Deserialize, ToSchema, Default)]
 pub struct InstallSchemaBody {
@@ -225,8 +184,8 @@ pub struct TokenMetaBody {
     pub token_meta_data: serde_json::Value,
 }
 
-fn default_ownership() -> String {
-    "Transferable".into()
+fn default_ownership() -> crate::routes::extractors::OwnershipModeParam {
+    crate::routes::extractors::OwnershipModeParam::Transferable
 }
 
 #[utoipa::path(
@@ -252,21 +211,21 @@ pub async fn cep78_install(
         &q.collection_symbol,
         q.total_token_supply,
     )
-    .with_ownership_mode(parse_ownership(&q.ownership_mode)?);
-    if let Some(ref v) = q.nft_metadata_kind {
-        args = args.with_nft_metadata_kind(parse_nft_metadata_kind(v)?);
+    .with_ownership_mode(q.ownership_mode.to_client());
+    if let Some(v) = q.nft_metadata_kind {
+        args = args.with_nft_metadata_kind(v.to_client());
     }
-    if let Some(ref v) = q.identifier_mode {
-        args = args.with_identifier_mode(parse_identifier_mode(v)?);
+    if let Some(v) = q.identifier_mode {
+        args = args.with_identifier_mode(v.to_client());
     }
-    if let Some(ref v) = q.metadata_mutability {
-        args = args.with_metadata_mutability(parse_metadata_mutability(v)?);
+    if let Some(v) = q.metadata_mutability {
+        args = args.with_metadata_mutability(v.to_client());
     }
-    if let Some(ref v) = q.nft_kind {
-        args.nft_kind = Some(parse_nft_kind(v)?);
+    if let Some(v) = q.nft_kind {
+        args.nft_kind = Some(v.to_client());
     }
-    if let Some(ref v) = q.minting_mode {
-        args = args.with_minting_mode(parse_minting_mode(v)?);
+    if let Some(v) = q.minting_mode {
+        args = args.with_minting_mode(v.to_client());
     }
     if let Some(v) = q.allow_minting {
         args.allow_minting = Some(v);
@@ -277,11 +236,11 @@ pub async fn cep78_install(
     if let Some(v) = q.package_operator_mode {
         args.package_operator_mode = Some(v);
     }
-    if let Some(ref v) = q.whitelist_mode {
-        args.whitelist_mode = Some(parse_whitelist_mode(v)?);
+    if let Some(v) = q.whitelist_mode {
+        args.whitelist_mode = Some(v.to_client());
     }
-    if let Some(ref v) = q.holder_mode {
-        args = args.with_holder_mode(parse_holder_mode(v)?);
+    if let Some(v) = q.holder_mode {
+        args = args.with_holder_mode(v.to_client());
     }
     if let Some(v) = q.acl_package_mode {
         args.acl_package_mode = Some(v);
@@ -289,19 +248,19 @@ pub async fn cep78_install(
     if let Some(v) = opt_list(q.acl_whitelist) {
         args.acl_whitelist = Some(v);
     }
-    if let Some(ref v) = q.burn_mode {
-        args = args.with_burn_mode(parse_burn_mode(v)?);
+    if let Some(v) = q.burn_mode {
+        args = args.with_burn_mode(v.to_client());
     }
-    if let Some(ref v) = q.owner_reverse_lookup_mode {
-        args = args.with_owner_reverse_lookup_mode(parse_owner_reverse_lookup(v)?);
+    if let Some(v) = q.owner_reverse_lookup_mode {
+        args = args.with_owner_reverse_lookup_mode(v.to_client());
     }
-    if let Some(ref v) = q.named_key_convention {
-        args.named_key_convention = Some(parse_named_key_convention(v)?);
+    if let Some(v) = q.named_key_convention {
+        args.named_key_convention = Some(v.to_client());
     }
     args.access_key_name = q.access_key_name.clone();
     args.hash_key_name = q.hash_key_name.clone();
-    if let Some(ref m) = q.events_mode {
-        args.events_mode = Some(parse_events_mode78(m)?);
+    if let Some(m) = q.events_mode {
+        args.events_mode = Some(m.to_client());
     }
     args.transfer_filter_contract = q.transfer_filter_contract.clone();
     if let Some(schema) = body.and_then(|b| b.into_inner().json_schema) {
@@ -311,10 +270,28 @@ pub async fn cep78_install(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct UpgradeOp {
+    /// Canonical wasm id or path under configured wasm roots.
+    #[schema(example = "cep78")]
+    pub wasm: String,
+    /// NFT collection name.
+    #[schema(example = "MyNFTs")]
+    pub collection_name: String,
+    /// Max collection supply.
+    #[schema(example = 1000)]
+    pub total_token_supply: Option<u64>,
+    #[serde(default)]
+    #[param(inline, example = "CES")]
+    pub events_mode: Option<crate::routes::extractors::EventsMode78Param>,
+    pub acl_package_mode: Option<bool>,
+    pub package_operator_mode: Option<bool>,
+    pub operator_burn_mode: Option<bool>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct UpgradeQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     /// Canonical wasm id or path under configured wasm roots.
     #[schema(example = "cep78")]
@@ -326,12 +303,13 @@ pub struct UpgradeQuery {
     #[schema(example = 1000)]
     pub total_token_supply: Option<u64>,
     #[serde(default)]
-    #[param(example = "CES")]
-    pub events_mode: Option<String>,
+    pub events_mode: Option<crate::routes::extractors::EventsMode78Param>,
     pub acl_package_mode: Option<bool>,
     pub package_operator_mode: Option<bool>,
     pub operator_burn_mode: Option<bool>,
 }
+
+crate::impl_flat_query_params!(UpgradeQuery, mutate, UpgradeOp);
 
 #[utoipa::path(
     post,
@@ -351,8 +329,8 @@ pub async fn cep78_upgrade(
     let wasm = resolve_wasm(&state, &q.wasm)?;
     let mut args = UpgradeArgs::new(&q.collection_name);
     args.total_token_supply = q.total_token_supply;
-    if let Some(ref m) = q.events_mode {
-        args.events_mode = Some(parse_events_mode78(m)?);
+    if let Some(m) = q.events_mode {
+        args.events_mode = Some(m.to_client());
     }
     args.acl_package_mode = q.acl_package_mode;
     args.package_operator_mode = q.package_operator_mode;
@@ -361,13 +339,21 @@ pub async fn cep78_upgrade(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct MintOp {
+    /// Owner account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub owner: String,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct MintQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Owner account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
@@ -376,6 +362,8 @@ pub struct MintQuery {
     #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_hash: Option<String>,
 }
+
+crate::impl_flat_query_params!(MintQuery, mutate_contract, MintOp);
 
 #[utoipa::path(
     post,
@@ -404,13 +392,23 @@ pub async fn cep78_mint(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct TransferOp {
+    pub source: String,
+    pub target: String,
+    /// Token id.
+    #[schema(example = "1")]
+    pub token_id: Option<String>,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct TransferQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     pub source: String,
     pub target: String,
@@ -421,6 +419,8 @@ pub struct TransferQuery {
     #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_hash: Option<String>,
 }
+
+crate::impl_flat_query_params!(TransferQuery, mutate_contract, TransferOp);
 
 #[utoipa::path(
     post,
@@ -444,13 +444,21 @@ pub async fn cep78_transfer(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct BurnOp {
+    /// Token id.
+    #[schema(example = "1")]
+    pub token_id: Option<String>,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct BurnQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
@@ -459,6 +467,8 @@ pub struct BurnQuery {
     #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_hash: Option<String>,
 }
+
+crate::impl_flat_query_params!(BurnQuery, mutate_contract, BurnOp);
 
 #[utoipa::path(
     post,
@@ -481,18 +491,25 @@ pub async fn cep78_burn(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct RegisterOwnerOp {
+    /// Token owner key.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_owner: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct RegisterOwnerQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Token owner key.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_owner: String,
 }
+
+crate::impl_flat_query_params!(RegisterOwnerQuery, mutate_contract, RegisterOwnerOp);
 
 #[utoipa::path(
     post,
@@ -515,13 +532,24 @@ pub async fn cep78_register_owner(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct ApproveOp {
+    /// Spender account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub spender: String,
+    /// Token id.
+    #[schema(example = "1")]
+    pub token_id: Option<String>,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct ApproveQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Spender account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
@@ -533,6 +561,8 @@ pub struct ApproveQuery {
     #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_hash: Option<String>,
 }
+
+crate::impl_flat_query_params!(ApproveQuery, mutate_contract, ApproveOp);
 
 #[utoipa::path(
     post,
@@ -575,13 +605,21 @@ pub async fn cep78_revoke(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct ApprovalForAllOp {
+    /// Operator account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub operator: String,
+    /// Approve operator for all tokens.
+    #[schema(example = true)]
+    pub approve_all: bool,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct ApprovalForAllQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Operator account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
@@ -590,6 +628,8 @@ pub struct ApprovalForAllQuery {
     #[schema(example = true)]
     pub approve_all: bool,
 }
+
+crate::impl_flat_query_params!(ApprovalForAllQuery, mutate_contract, ApprovalForAllOp);
 
 #[utoipa::path(
     post,
@@ -615,13 +655,21 @@ pub async fn cep78_set_approval_for_all(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct SetMetaOp {
+    /// Token id.
+    #[schema(example = "1")]
+    pub token_id: Option<String>,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct SetMetaQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
@@ -630,6 +678,8 @@ pub struct SetMetaQuery {
     #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub token_hash: Option<String>,
 }
+
+crate::impl_flat_query_params!(SetMetaQuery, mutate_contract, SetMetaOp);
 
 #[utoipa::path(
     post,
@@ -655,13 +705,23 @@ pub async fn cep78_set_token_metadata(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct SetVariablesOp {
+    /// Whether minting is allowed.
+    #[schema(example = true)]
+    pub allow_minting: Option<bool>,
+    #[serde(default)]
+    pub acl_whitelist: Vec<String>,
+    pub acl_package_mode: Option<bool>,
+    pub package_operator_mode: Option<bool>,
+    pub operator_burn_mode: Option<bool>,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct SetVariablesQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Whether minting is allowed.
     #[schema(example = true)]
@@ -672,6 +732,8 @@ pub struct SetVariablesQuery {
     pub package_operator_mode: Option<bool>,
     pub operator_burn_mode: Option<bool>,
 }
+
+crate::impl_flat_query_params!(SetVariablesQuery, mutate_contract, SetVariablesOp);
 
 #[utoipa::path(
     post,
@@ -700,13 +762,22 @@ pub async fn cep78_set_variables(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct MintSessionOp {
+    /// Owner account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub owner: String,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+    pub session_wasm: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct MintSessionQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Owner account public key or account-hash.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
@@ -716,6 +787,8 @@ pub struct MintSessionQuery {
     pub token_hash: Option<String>,
     pub session_wasm: String,
 }
+
+crate::impl_flat_query_params!(MintSessionQuery, mutate_contract, MintSessionOp);
 
 #[utoipa::path(
     post,
@@ -746,13 +819,24 @@ pub async fn cep78_mint_session(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct TransferSessionOp {
+    pub source: String,
+    pub target: String,
+    /// Token id.
+    #[schema(example = "1")]
+    pub token_id: Option<String>,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+    pub session_wasm: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct TransferSessionQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     pub source: String,
     pub target: String,
@@ -764,6 +848,8 @@ pub struct TransferSessionQuery {
     pub token_hash: Option<String>,
     pub session_wasm: String,
 }
+
+crate::impl_flat_query_params!(TransferSessionQuery, mutate_contract, TransferSessionOp);
 
 #[utoipa::path(
     post,
@@ -788,16 +874,21 @@ pub async fn cep78_transfer_session(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct UpdatedReceiptsOp {
+    pub session_wasm: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct UpdatedReceiptsQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     pub session_wasm: String,
 }
+
+crate::impl_flat_query_params!(UpdatedReceiptsQuery, mutate_contract, UpdatedReceiptsOp);
 
 #[utoipa::path(
     post,
@@ -1113,6 +1204,7 @@ pub async fn cep78_get_approved(
     params(
         ("contract_hash" = String, Path, description = "Contract hash hex"),
         ("token" = String, Path, description = "Token id or hash"),
+        MetadataQuery,
     ),
     responses((status = 200, description = "Query result")),
     tag = "CEP-78"
@@ -1136,26 +1228,22 @@ pub async fn cep78_metadata(
     } else {
         TokenIdentifier::Hash(token)
     };
-    let kind = match q.kind.unwrap_or(0) {
-        0 => NftMetadataKind::CEP78,
-        1 => NftMetadataKind::Nft721,
-        2 => NftMetadataKind::Raw,
-        3 => NftMetadataKind::CustomValidated,
-        other => {
-            return Err(ApiError::BadRequest(format!(
-                "invalid metadata kind {other}"
-            )))
-        }
-    };
+    let kind = q
+        .kind
+        .unwrap_or(crate::routes::extractors::NftMetadataKindParam::CEP78)
+        .to_client();
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "metadata": client.metadata(&ident, kind).await.map_err(ApiError::from_cep)?
     })))
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
 pub struct MetadataQuery {
-    pub kind: Option<u8>,
+    /// NFT metadata encoding kind for this collection.
+    #[serde(default)]
+    #[param(inline, example = "CEP78")]
+    pub kind: Option<crate::routes::extractors::NftMetadataKindParam>,
 }
 
 #[utoipa::path(
@@ -1185,13 +1273,23 @@ pub async fn cep78_is_acl_whitelisted(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct OwnerOfSessionOp {
+    /// Token id.
+    #[schema(example = "1")]
+    pub token_id: Option<String>,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct OwnerOfSessionQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
@@ -1202,6 +1300,8 @@ pub struct OwnerOfSessionQuery {
     pub key_name: String,
     pub session_wasm: String,
 }
+
+crate::impl_flat_query_params!(OwnerOfSessionQuery, mutate_contract, OwnerOfSessionOp);
 
 #[utoipa::path(
     post,
@@ -1230,13 +1330,20 @@ pub async fn cep78_owner_of_session(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct BalanceOfSessionOp {
+    /// Token owner key.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_owner: String,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct BalanceOfSessionQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Token owner key.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
@@ -1244,6 +1351,8 @@ pub struct BalanceOfSessionQuery {
     pub key_name: String,
     pub session_wasm: String,
 }
+
+crate::impl_flat_query_params!(BalanceOfSessionQuery, mutate_contract, BalanceOfSessionOp);
 
 #[utoipa::path(
     post,
@@ -1271,13 +1380,23 @@ pub async fn cep78_balance_of_session(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct GetApprovedSessionOp {
+    /// Token id.
+    #[schema(example = "1")]
+    pub token_id: Option<String>,
+    /// Token hash hex when identifier mode is Hash.
+    #[schema(example = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_hash: Option<String>,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct GetApprovedSessionQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Token id.
     #[schema(example = "1")]
@@ -1288,6 +1407,12 @@ pub struct GetApprovedSessionQuery {
     pub key_name: String,
     pub session_wasm: String,
 }
+
+crate::impl_flat_query_params!(
+    GetApprovedSessionQuery,
+    mutate_contract,
+    GetApprovedSessionOp
+);
 
 #[utoipa::path(
     post,
@@ -1316,13 +1441,23 @@ pub async fn cep78_get_approved_session(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
+pub struct IsApprovedForAllSessionOp {
+    /// Token owner key.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub token_owner: String,
+    /// Operator account public key or account-hash.
+    #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    pub operator: String,
+    pub key_name: String,
+    pub session_wasm: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 pub struct IsApprovedForAllSessionQuery {
     #[serde(flatten)]
-    #[param(inline)]
     pub mutate: MutateQuery,
     #[serde(flatten)]
-    #[param(inline)]
     pub contract: ContractQuery,
     /// Token owner key.
     #[schema(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
@@ -1333,6 +1468,12 @@ pub struct IsApprovedForAllSessionQuery {
     pub key_name: String,
     pub session_wasm: String,
 }
+
+crate::impl_flat_query_params!(
+    IsApprovedForAllSessionQuery,
+    mutate_contract,
+    IsApprovedForAllSessionOp
+);
 
 #[utoipa::path(
     post,

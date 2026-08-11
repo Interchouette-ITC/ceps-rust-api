@@ -22,6 +22,19 @@ use utoipa::OpenApi;
         crate::tx::SignerRef,
         crate::routes::extractors::MutateQuery,
         crate::routes::extractors::ContractQuery,
+        crate::routes::extractors::EventsModeParam,
+        crate::routes::extractors::EventsMode78Param,
+        crate::routes::extractors::OwnershipModeParam,
+        crate::routes::extractors::NftMetadataKindParam,
+        crate::routes::extractors::IdentifierModeParam,
+        crate::routes::extractors::MetadataMutabilityParam,
+        crate::routes::extractors::NftKindParam,
+        crate::routes::extractors::MintingModeParam,
+        crate::routes::extractors::BurnModeParam,
+        crate::routes::extractors::WhitelistModeParam,
+        crate::routes::extractors::HolderModeParam,
+        crate::routes::extractors::OwnerReverseLookupModeParam,
+        crate::routes::extractors::NamedKeyConventionModeParam,
         crate::routes::extractors::NameResponse,
         crate::routes::extractors::SymbolResponse,
         crate::routes::extractors::DecimalsResponse,
@@ -306,5 +319,147 @@ pub fn build_openapi() -> utoipa::openapi::OpenApi {
         #[cfg(feature = "cep95")]
         doc.merge(ApiDocCep95::openapi());
         doc
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_openapi;
+    use serde_json::Value;
+
+    #[test]
+    fn cep18_approve_params_are_flat_enums() {
+        let doc = build_openapi();
+        let json = serde_json::to_value(doc).expect("openapi json");
+        let params = json
+            .pointer("/paths/~1v1~1cep18~1approve/post/parameters")
+            .and_then(|v| v.as_array())
+            .expect("approve parameters");
+        let names: Vec<&str> = params
+            .iter()
+            .filter_map(|p| p.get("name").and_then(|n| n.as_str()))
+            .collect();
+        for required in [
+            "signer",
+            "submit",
+            "wait",
+            "payment_amount",
+            "contract_hash",
+            "spender",
+            "amount",
+        ] {
+            assert!(names.contains(&required), "missing {required} in {names:?}");
+        }
+        assert!(!names.contains(&"mutate"));
+        assert!(!names.contains(&"contract"));
+
+        let submit = params
+            .iter()
+            .find(|p| p.get("name").and_then(|n| n.as_str()) == Some("submit"))
+            .expect("submit param");
+        assert_enum_select(&json, submit, &["put", "return"]);
+    }
+
+    #[test]
+    fn cep18_change_events_mode_is_select() {
+        let doc = build_openapi();
+        let json = serde_json::to_value(doc).expect("openapi json");
+        let params = json
+            .pointer("/paths/~1v1~1cep18~1change-events-mode/post/parameters")
+            .and_then(|v| v.as_array())
+            .expect("change-events-mode parameters");
+        let events = params
+            .iter()
+            .find(|p| p.get("name").and_then(|n| n.as_str()) == Some("events_mode"))
+            .expect("events_mode param");
+        assert_enum_select(&json, events, &["NoEvents", "CES", "Native", "NativeBytes"]);
+    }
+
+    #[test]
+    fn all_mode_like_query_params_are_enum_selects() {
+        let doc = build_openapi();
+        let json = serde_json::to_value(doc).expect("openapi json");
+        let mode_like = [
+            "submit",
+            "wait",
+            "events_mode",
+            "ownership_mode",
+            "nft_metadata_kind",
+            "nft_kind",
+            "identifier_mode",
+            "metadata_mutability",
+            "minting_mode",
+            "burn_mode",
+            "whitelist_mode",
+            "holder_mode",
+            "owner_reverse_lookup_mode",
+            "named_key_convention",
+            "kind",
+        ];
+        let mut seen = 0usize;
+        for (path, methods) in json.get("paths").and_then(|v| v.as_object()).unwrap() {
+            for (_method, op) in methods.as_object().unwrap() {
+                let Some(params) = op.get("parameters").and_then(|v| v.as_array()) else {
+                    continue;
+                };
+                for p in params {
+                    if p.get("in").and_then(|v| v.as_str()) != Some("query") {
+                        continue;
+                    }
+                    let Some(name) = p.get("name").and_then(|v| v.as_str()) else {
+                        continue;
+                    };
+                    if !mode_like.contains(&name) {
+                        continue;
+                    }
+                    seen += 1;
+                    let schema = resolve_schema(&json, p.get("schema").expect("schema"));
+                    assert!(
+                        schema.get("enum").is_some(),
+                        "{path} query `{name}` is not an OpenAPI enum select: {schema}"
+                    );
+                }
+            }
+        }
+        assert!(
+            seen >= 20,
+            "expected many mode-like enum params, only saw {seen}"
+        );
+    }
+
+    fn resolve_schema<'a>(doc: &'a Value, schema: &'a Value) -> Value {
+        if let Some(r) = schema.get("$ref").and_then(|v| v.as_str()) {
+            let name = r.rsplit('/').next().unwrap();
+            return doc
+                .pointer(&format!("/components/schemas/{name}"))
+                .cloned()
+                .unwrap_or_else(|| panic!("missing schema ref {r}"));
+        }
+        if let Some(all_of) = schema.get("allOf").and_then(|v| v.as_array()) {
+            for part in all_of {
+                let resolved = resolve_schema(doc, part);
+                if resolved.get("enum").is_some() {
+                    return resolved;
+                }
+            }
+        }
+        schema.clone()
+    }
+
+    fn assert_enum_select(doc: &Value, param: &Value, expected: &[&str]) {
+        let schema = resolve_schema(doc, param.get("schema").expect("param schema"));
+        let vals: Vec<String> = schema
+            .get("enum")
+            .and_then(|v| v.as_array())
+            .expect("enum array")
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
+        for e in expected {
+            assert!(
+                vals.iter().any(|v| v.eq_ignore_ascii_case(e)),
+                "missing variant {e} in {vals:?} (schema={schema})"
+            );
+        }
     }
 }

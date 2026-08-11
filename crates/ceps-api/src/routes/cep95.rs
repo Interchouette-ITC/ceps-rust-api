@@ -45,11 +45,8 @@ fn bound(state: &AppState, contract: &ContractQuery) -> Result<CEP95Client, ApiE
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct InstallQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct InstallOp {
     #[param(example = "cep95")]
     pub wasm: String,
     #[param(example = "MyOdraNft")]
@@ -68,6 +65,24 @@ pub struct InstallQuery {
     #[param(example = false)]
     pub is_upgrade: Option<bool>,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct InstallQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    pub wasm: String,
+    pub name: String,
+    pub symbol: String,
+    pub package_hash_key_name: String,
+    #[serde(default)]
+    pub allow_key_override: Option<bool>,
+    #[serde(default)]
+    pub is_upgradable: Option<bool>,
+    #[serde(default)]
+    pub is_upgrade: Option<bool>,
+}
+
+crate::impl_flat_query_params!(InstallQuery, mutate, InstallOp);
 
 #[utoipa::path(
     post,
@@ -99,14 +114,8 @@ pub async fn cep95_install(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct TransferQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct TransferOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub from: String,
     #[param(example = "01bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")]
@@ -117,6 +126,22 @@ pub struct TransferQuery {
     #[serde(default)]
     pub data: Option<String>,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct TransferQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub from: String,
+    pub to: String,
+    pub token_id: String,
+    /// Optional receiver data as hex (safe_transfer_from).
+    #[serde(default)]
+    pub data: Option<String>,
+}
+
+crate::impl_flat_query_params!(TransferQuery, mutate_contract, TransferOp);
 
 #[utoipa::path(
     post,
@@ -167,19 +192,25 @@ pub async fn cep95_safe_transfer_from(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct ApproveQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct ApproveOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub spender: String,
     #[param(example = "1")]
     pub token_id: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct ApproveQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub spender: String,
+    pub token_id: String,
+}
+
+crate::impl_flat_query_params!(ApproveQuery, mutate_contract, ApproveOp);
 
 #[utoipa::path(
     post,
@@ -223,17 +254,22 @@ pub async fn cep95_revoke_approval(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct ApproveForAllQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct ApproveForAllOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub operator: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct ApproveForAllQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub operator: String,
+}
+
+crate::impl_flat_query_params!(ApproveForAllQuery, mutate_contract, ApproveForAllOp);
 
 #[utoipa::path(
     post,
@@ -274,19 +310,25 @@ pub async fn cep95_revoke_approval_for_all(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct MintQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct MintOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub to: String,
     #[param(example = "1")]
     pub token_id: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct MintQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub to: String,
+    pub token_id: String,
+}
+
+crate::impl_flat_query_params!(MintQuery, mutate_contract, MintOp);
 
 /// Selected body: Odra metadata key/value pairs (how CEP-95 mint works).
 #[derive(Debug, Deserialize, ToSchema, Default)]
@@ -339,17 +381,22 @@ pub async fn cep95_mint(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct BurnQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct BurnOp {
     #[param(example = "1")]
     pub token_id: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct BurnQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub token_id: String,
+}
+
+crate::impl_flat_query_params!(BurnQuery, mutate_contract, BurnOp);
 
 #[utoipa::path(
     post,
@@ -370,17 +417,22 @@ pub async fn cep95_burn(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
-pub struct TransferOwnershipQuery {
-    #[serde(flatten)]
-    #[param(inline)]
-    pub mutate: MutateQuery,
-    #[serde(flatten)]
-    #[param(inline)]
-    pub contract: ContractQuery,
+#[into_params(parameter_in = Query, style = Form)]
+pub struct TransferOwnershipOp {
     #[param(example = "01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     pub new_owner: String,
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct TransferOwnershipQuery {
+    #[serde(flatten)]
+    pub mutate: MutateQuery,
+    #[serde(flatten)]
+    pub contract: ContractQuery,
+    pub new_owner: String,
+}
+
+crate::impl_flat_query_params!(TransferOwnershipQuery, mutate_contract, TransferOwnershipOp);
 
 #[utoipa::path(
     post,
@@ -620,7 +672,7 @@ pub async fn cep95_token_metadata(
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in = Query)]
+#[into_params(parameter_in = Query, style = Form)]
 pub struct BindOdraInstallQuery {
     pub installer_public_key: String,
     pub package_hash_key_name: String,
