@@ -10,7 +10,6 @@ description = "HTTP API for Casper CEP-18, CEP-78, CEP-85, and CEP-95 (optional 
 readme = "README.md"
 homepage = "https://github.com/Interchouette-ITC/ceps-rust-api"
 repository = "https://github.com/Interchouette-ITC/ceps-rust-api"
-authors = ["3099551+gRoussac@users.noreply.github.com"]
 license-file = "LICENSE"
 
 [workspace.dependencies]
@@ -30,7 +29,7 @@ reqwest = { version = "0.12", default-features = false, features = [
     "rustls-tls",
 ] }
 parking_lot = "0.12"
-ceps-client = { path = "../ceps-rust-ts-client/ceps-client" }
+ceps-client = { git = "https://github.com/Interchouette-ITC/ceps-rust-ts-client", branch = "dev" }
 
 [patch.crates-io]
 casper-client = { version = "5", git = "https://github.com/casper-ecosystem/casper-client-rs", branch = "dev" }
