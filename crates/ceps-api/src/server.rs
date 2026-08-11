@@ -84,6 +84,7 @@ pub fn create_app(
             crate::routes::cep18::cep18_is_mint_and_burn_enabled,
             crate::routes::cep18::cep18_balance_of,
             crate::routes::cep18::cep18_allowances,
+            crate::routes::cep18::cep18_security_badge,
         );
     }
     #[cfg(feature = "cep78")]
@@ -104,16 +105,36 @@ pub fn create_app(
             crate::routes::cep78::cep78_mint_session,
             crate::routes::cep78::cep78_transfer_session,
             crate::routes::cep78::cep78_updated_receipts,
+            crate::routes::cep78::cep78_owner_of_session,
+            crate::routes::cep78::cep78_balance_of_session,
+            crate::routes::cep78::cep78_get_approved_session,
+            crate::routes::cep78::cep78_is_approved_for_all_session,
             crate::routes::cep78::cep78_collection_name,
             crate::routes::cep78::cep78_collection_symbol,
             crate::routes::cep78::cep78_total_token_supply,
             crate::routes::cep78::cep78_number_of_minted_tokens,
+            crate::routes::cep78::cep78_allow_minting,
+            crate::routes::cep78::cep78_operator_burn_mode,
+            crate::routes::cep78::cep78_package_operator_mode,
+            crate::routes::cep78::cep78_acl_package_mode,
+            crate::routes::cep78::cep78_json_schema,
+            crate::routes::cep78::cep78_minting_mode,
+            crate::routes::cep78::cep78_whitelist_mode,
+            crate::routes::cep78::cep78_reporting_mode,
+            crate::routes::cep78::cep78_burn_mode,
+            crate::routes::cep78::cep78_holder_mode,
+            crate::routes::cep78::cep78_identifier_mode,
+            crate::routes::cep78::cep78_metadata_mutability,
+            crate::routes::cep78::cep78_nft_kind,
+            crate::routes::cep78::cep78_nft_metadata_kind,
+            crate::routes::cep78::cep78_ownership_mode,
             crate::routes::cep78::cep78_events_mode,
             crate::routes::cep78::cep78_owner_of,
             crate::routes::cep78::cep78_balance_of,
             crate::routes::cep78::cep78_is_approved_for_all,
             crate::routes::cep78::cep78_get_approved,
             crate::routes::cep78::cep78_metadata,
+            crate::routes::cep78::cep78_is_acl_whitelisted,
         );
     }
     #[cfg(feature = "cep85")]
@@ -134,14 +155,24 @@ pub fn create_app(
             crate::routes::cep85::cep85_set_total_supply_of_batch,
             crate::routes::cep85::cep85_change_security,
             crate::routes::cep85::cep85_set_modalities,
+            crate::routes::cep85::cep85_balance_of_batch,
+            crate::routes::cep85::cep85_supply_of_batch,
+            crate::routes::cep85::cep85_total_supply_of_batch,
             crate::routes::cep85::cep85_collection_name,
             crate::routes::cep85::cep85_collection_uri,
             crate::routes::cep85::cep85_balance_of,
             crate::routes::cep85::cep85_supply_of,
             crate::routes::cep85::cep85_total_supply_of,
+            crate::routes::cep85::cep85_total_fungible_supply,
             crate::routes::cep85::cep85_uri,
             crate::routes::cep85::cep85_is_non_fungible,
             crate::routes::cep85::cep85_is_approved_for_all,
+            crate::routes::cep85::cep85_enable_burn,
+            crate::routes::cep85::cep85_events_mode,
+            crate::routes::cep85::cep85_number_of_minted_tokens,
+            crate::routes::cep85::cep85_transfer_filter_contract,
+            crate::routes::cep85::cep85_transfer_filter_method,
+            crate::routes::cep85::cep85_security_badge,
         );
     }
     #[cfg(feature = "cep95")]
@@ -157,9 +188,11 @@ pub fn create_app(
             crate::routes::cep95::cep95_revoke_approval_for_all,
             crate::routes::cep95::cep95_mint,
             crate::routes::cep95::cep95_burn,
+            crate::routes::cep95::cep95_transfer_ownership,
             crate::routes::cep95::cep95_name,
             crate::routes::cep95::cep95_symbol,
             crate::routes::cep95::cep95_total_supply,
+            crate::routes::cep95::cep95_get_owner,
             crate::routes::cep95::cep95_owner_of,
             crate::routes::cep95::cep95_balance_of,
             crate::routes::cep95::cep95_get_approved,
@@ -236,8 +269,24 @@ mod tests {
         assert!(body["paths"].get("/health").is_some());
         #[cfg(feature = "chain-put")]
         assert!(body["paths"].get("/v1/chain/put-transaction").is_some());
+        #[cfg(feature = "cep18")]
+        assert!(body["paths"]
+            .get("/v1/cep18/{contract_hash}/security-badge/{account}")
+            .is_some());
+        #[cfg(feature = "cep85")]
+        assert!(body["paths"].get("/v1/cep85/balance-of-batch").is_some());
+        #[cfg(feature = "cep95")]
+        {
+            assert!(body["paths"]
+                .get("/v1/cep95/{contract_hash}/get-owner")
+                .is_some());
+            assert!(body["paths"].get("/v1/cep95/transfer-ownership").is_some());
+        }
         assert!(body["paths"].get("/v1/instances/{id}").is_none());
         assert!(body["paths"].get("/v1/wasm").is_none());
+        assert!(body["paths"]
+            .get("/v1/account/{public_key}/named-key/{name}")
+            .is_none());
     }
 
     #[actix_web::test]

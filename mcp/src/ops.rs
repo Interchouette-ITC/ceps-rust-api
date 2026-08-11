@@ -89,7 +89,16 @@ fn docker_ps_filter(name: &str) -> String {
 fn curl_get(url: &str) -> String {
     let (code, out, err) = run(
         "curl",
-        &["-sS", "-m", "3", "-o", "-", "-w", "\nHTTP %{http_code}", url],
+        &[
+            "-sS",
+            "-m",
+            "3",
+            "-o",
+            "-",
+            "-w",
+            "\nHTTP %{http_code}",
+            url,
+        ],
     );
     if code != 0 {
         return format!("curl {url} failed: {err}");
@@ -260,7 +269,9 @@ pub fn status() -> String {
     if api_pid_path().is_file() {
         lines.push(format!(
             "host_api_pid={}",
-            fs::read_to_string(api_pid_path()).unwrap_or_default().trim()
+            fs::read_to_string(api_pid_path())
+                .unwrap_or_default()
+                .trim()
         ));
     }
     lines.join("\n")

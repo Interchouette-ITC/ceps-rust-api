@@ -1,7 +1,7 @@
 //! CEP-95 HTTP routes (CEP95Client surface).
 
 use crate::error::ApiError;
-use crate::routes::common::{bind_contract, cep_core, resolve_wasm};
+use crate::routes::common::{bind_contract, cep_core, optional_hex_bytes, resolve_wasm};
 use crate::state::AppState;
 use crate::tx::{build_transaction_params, finalize_call, MutateEnvelope};
 use actix_web::{get, post, web, HttpResponse};
@@ -83,6 +83,8 @@ pub struct TransferBody {
     pub from: String,
     pub to: String,
     pub token_id: String,
+    /// Optional receiver data as hex (safe_transfer_from only).
+    pub data: Option<String>,
 }
 
 #[utoipa::path(
@@ -114,11 +116,12 @@ pub async fn cep95_safe_transfer_from(
 ) -> Result<HttpResponse, ApiError> {
     build_transaction_params(&state, &body.envelope)?;
     let client = bound(&state, &body.contract)?;
+    let data = optional_hex_bytes(body.data.as_deref())?;
     mutate!(state, body.envelope, |tx| client.safe_transfer_from(
         &body.from,
         &body.to,
         &body.token_id,
-        None,
+        data.as_deref(),
         tx
     ))
 }
@@ -234,6 +237,52 @@ pub async fn cep95_burn(
     build_transaction_params(&state, &body.envelope)?;
     let client = bound(&state, &body.contract)?;
     mutate!(state, body.envelope, |tx| client.burn(&body.token_id, tx))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct TransferOwnershipBody {
+    #[serde(flatten)]
+    pub envelope: MutateEnvelope,
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub new_owner: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/v1/cep95/transfer-ownership",
+    request_body = TransferOwnershipBody,
+    responses((status = 200, description = "Transfer ownership outcome", body = crate::tx::PipelineOutcome)),
+    tag = "CEP-95"
+)]
+#[post("/v1/cep95/transfer-ownership")]
+pub async fn cep95_transfer_ownership(
+    state: web::Data<AppState>,
+    body: web::Json<TransferOwnershipBody>,
+) -> Result<HttpResponse, ApiError> {
+    build_transaction_params(&state, &body.envelope)?;
+    let client = bound(&state, &body.contract)?;
+    mutate!(state, body.envelope, |tx| client
+        .transfer_ownership(&body.new_owner, tx))
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/cep95/{contract_hash}/get-owner",
+    params(("contract_hash" = String, Path, description = "Contract hash hex")),
+    responses((status = 200, description = "Ownable contract owner")),
+    tag = "CEP-95"
+)]
+#[get("/v1/cep95/{contract_hash}/get-owner")]
+pub async fn cep95_get_owner(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &path, None)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "owner": client.get_owner().await.map_err(ApiError::from_cep)?
+    })))
 }
 
 #[get("/v1/cep95/{contract_hash}/name")]

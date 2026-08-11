@@ -1,7 +1,7 @@
 //! CEP-85 HTTP routes (MCP-aligned surface).
 
 use crate::error::ApiError;
-use crate::routes::common::{bind_contract, cep_core, resolve_wasm};
+use crate::routes::common::{bind_contract, cep_core, optional_hex_bytes, resolve_wasm};
 use crate::state::AppState;
 use crate::tx::{build_transaction_params, finalize_call, MutateEnvelope};
 use actix_web::{get, post, web, HttpResponse};
@@ -53,6 +53,14 @@ pub struct InstallBody {
     pub wasm: String,
     pub name: String,
     pub uri: String,
+    pub events_mode: Option<u8>,
+    pub enable_burn: Option<bool>,
+    pub admin_list: Option<Vec<String>>,
+    pub minter_list: Option<Vec<String>>,
+    pub burner_list: Option<Vec<String>>,
+    pub meta_list: Option<Vec<String>>,
+    pub transfer_filter_contract: Option<String>,
+    pub transfer_filter_method: Option<String>,
 }
 
 #[utoipa::path(
@@ -69,7 +77,40 @@ pub async fn cep85_install(
 ) -> Result<HttpResponse, ApiError> {
     let client = client(&state)?;
     let wasm = resolve_wasm(&state, &body.wasm)?;
-    let args = InstallArgs::new(&body.name, &body.uri);
+    let mut args = InstallArgs::new(&body.name, &body.uri);
+    if let Some(m) = body.events_mode {
+        args = args.with_events_mode(
+            EventsMode::from_u8(m)
+                .ok_or_else(|| ApiError::BadRequest(format!("invalid events_mode {m}")))?,
+        );
+    }
+    if let Some(v) = body.enable_burn {
+        args = args.with_enable_burn(v);
+    }
+    if let Some(a) = body.admin_list.clone() {
+        args = args.with_admin_list(a);
+    }
+    if let Some(m) = body.minter_list.clone() {
+        args = args.with_minter_list(m);
+    }
+    if let Some(b) = body.burner_list.clone() {
+        args = args.with_burner_list(b);
+    }
+    if let Some(m) = body.meta_list.clone() {
+        args = args.with_meta_list(m);
+    }
+    match (
+        body.transfer_filter_contract.as_deref(),
+        body.transfer_filter_method.as_deref(),
+    ) {
+        (Some(c), Some(m)) => args = args.with_transfer_filter(c, m),
+        (None, None) => {}
+        _ => {
+            return Err(ApiError::BadRequest(
+                "transfer_filter_contract and transfer_filter_method must both be set".into(),
+            ));
+        }
+    }
     mutate!(state, body.envelope, |tx| client.install(&args, &wasm, tx))
 }
 
@@ -79,6 +120,8 @@ pub struct UpgradeBody {
     pub envelope: MutateEnvelope,
     pub wasm: String,
     pub name: String,
+    pub transfer_filter_contract: Option<String>,
+    pub transfer_filter_method: Option<String>,
 }
 
 #[post("/v1/cep85/upgrade")]
@@ -88,7 +131,19 @@ pub async fn cep85_upgrade(
 ) -> Result<HttpResponse, ApiError> {
     let client = client(&state)?;
     let wasm = resolve_wasm(&state, &body.wasm)?;
-    let args = UpgradeArgs::new(&body.name);
+    let mut args = UpgradeArgs::new(&body.name);
+    match (
+        body.transfer_filter_contract.as_deref(),
+        body.transfer_filter_method.as_deref(),
+    ) {
+        (Some(c), Some(m)) => args = args.with_transfer_filter(c, m),
+        (None, None) => {}
+        _ => {
+            return Err(ApiError::BadRequest(
+                "transfer_filter_contract and transfer_filter_method must both be set".into(),
+            ));
+        }
+    }
     mutate!(state, body.envelope, |tx| client.upgrade(&args, &wasm, tx))
 }
 
@@ -101,6 +156,7 @@ pub struct MintBody {
     pub recipient: String,
     pub id: String,
     pub amount: String,
+    pub uri: Option<String>,
 }
 
 #[utoipa::path(
@@ -121,7 +177,7 @@ pub async fn cep85_mint(
         &body.recipient,
         &body.id,
         &body.amount,
-        None,
+        body.uri.as_deref(),
         tx
     ))
 }
@@ -135,6 +191,7 @@ pub struct BatchMintBody {
     pub recipient: String,
     pub ids: Vec<String>,
     pub amounts: Vec<String>,
+    pub uri: Option<String>,
 }
 
 #[post("/v1/cep85/batch-mint")]
@@ -150,7 +207,7 @@ pub async fn cep85_batch_mint(
         &body.recipient,
         &ids,
         &amounts,
-        None,
+        body.uri.as_deref(),
         tx
     ))
 }
@@ -165,6 +222,7 @@ pub struct TransferBody {
     pub to: String,
     pub id: String,
     pub amount: String,
+    pub data: Option<String>,
 }
 
 #[post("/v1/cep85/transfer")]
@@ -174,11 +232,13 @@ pub async fn cep85_transfer(
 ) -> Result<HttpResponse, ApiError> {
     build_transaction_params(&state, &body.envelope)?;
     let client = bound(&state, &body.contract)?;
+    let data = optional_hex_bytes(body.data.as_deref())?;
     mutate!(state, body.envelope, |tx| client.transfer(
         &body.from,
         &body.to,
         &body.id,
         &body.amount,
+        data.as_deref(),
         tx
     ))
 }
@@ -193,6 +253,7 @@ pub struct BatchTransferBody {
     pub to: String,
     pub ids: Vec<String>,
     pub amounts: Vec<String>,
+    pub data: Option<String>,
 }
 
 #[post("/v1/cep85/batch-transfer")]
@@ -204,8 +265,15 @@ pub async fn cep85_batch_transfer(
     let client = bound(&state, &body.contract)?;
     let ids: Vec<&str> = body.ids.iter().map(String::as_str).collect();
     let amounts: Vec<&str> = body.amounts.iter().map(String::as_str).collect();
-    mutate!(state, body.envelope, |tx| client
-        .batch_transfer(&body.from, &body.to, &ids, &amounts, tx))
+    let data = optional_hex_bytes(body.data.as_deref())?;
+    mutate!(state, body.envelope, |tx| client.batch_transfer(
+        &body.from,
+        &body.to,
+        &ids,
+        &amounts,
+        data.as_deref(),
+        tx
+    ))
 }
 
 #[derive(Deserialize)]
@@ -496,12 +564,18 @@ pub async fn cep85_total_supply_of(
 pub async fn cep85_uri(
     state: web::Data<AppState>,
     path: web::Path<String>,
+    query: web::Query<UriQuery>,
 ) -> Result<HttpResponse, ApiError> {
     let mut client = client(&state)?;
     bind_contract(client.core_mut(), &path, None)?;
     Ok(HttpResponse::Ok().json(serde_json::json!({
-        "uri": client.uri(None).await.map_err(ApiError::from_cep)?
+        "uri": client.uri(query.id.as_deref()).await.map_err(ApiError::from_cep)?
     })))
+}
+
+#[derive(Deserialize)]
+pub struct UriQuery {
+    pub id: Option<String>,
 }
 
 #[get("/v1/cep85/{contract_hash}/is-non-fungible/{id}")]
@@ -527,5 +601,172 @@ pub async fn cep85_is_approved_for_all(
     bind_contract(client.core_mut(), &contract_hash, None)?;
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "approved": client.is_approved_for_all(&owner, &operator).await.map_err(ApiError::from_cep)?
+    })))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct BatchAccountsIdsBody {
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub accounts: Vec<String>,
+    pub ids: Vec<String>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/v1/cep85/balance-of-batch",
+    request_body = BatchAccountsIdsBody,
+    responses((status = 200, description = "Batch balances")),
+    tag = "CEP-85"
+)]
+#[post("/v1/cep85/balance-of-batch")]
+pub async fn cep85_balance_of_batch(
+    state: web::Data<AppState>,
+    body: web::Json<BatchAccountsIdsBody>,
+) -> Result<HttpResponse, ApiError> {
+    let client = bound(&state, &body.contract)?;
+    let accounts: Vec<&str> = body.accounts.iter().map(String::as_str).collect();
+    let ids: Vec<&str> = body.ids.iter().map(String::as_str).collect();
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "balances": client.balance_of_batch(&accounts, &ids).await.map_err(ApiError::from_cep)?
+    })))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct BatchIdsBody {
+    #[serde(flatten)]
+    pub contract: ContractRef,
+    pub ids: Vec<String>,
+}
+
+#[post("/v1/cep85/supply-of-batch")]
+pub async fn cep85_supply_of_batch(
+    state: web::Data<AppState>,
+    body: web::Json<BatchIdsBody>,
+) -> Result<HttpResponse, ApiError> {
+    let client = bound(&state, &body.contract)?;
+    let ids: Vec<&str> = body.ids.iter().map(String::as_str).collect();
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "supplies": client.supply_of_batch(&ids).await.map_err(ApiError::from_cep)?
+    })))
+}
+
+#[post("/v1/cep85/total-supply-of-batch")]
+pub async fn cep85_total_supply_of_batch(
+    state: web::Data<AppState>,
+    body: web::Json<BatchIdsBody>,
+) -> Result<HttpResponse, ApiError> {
+    let client = bound(&state, &body.contract)?;
+    let ids: Vec<&str> = body.ids.iter().map(String::as_str).collect();
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "total_supplies": client
+            .total_supply_of_batch(&ids)
+            .await
+            .map_err(ApiError::from_cep)?
+    })))
+}
+
+#[get("/v1/cep85/{contract_hash}/total-fungible-supply/{id}")]
+pub async fn cep85_total_fungible_supply(
+    state: web::Data<AppState>,
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, ApiError> {
+    let (contract_hash, id) = path.into_inner();
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &contract_hash, None)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "total_fungible_supply": client
+            .total_fungible_supply(&id)
+            .await
+            .map_err(ApiError::from_cep)?
+    })))
+}
+
+#[get("/v1/cep85/{contract_hash}/enable-burn")]
+pub async fn cep85_enable_burn(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &path, None)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "enable_burn": client.enable_burn().await.map_err(ApiError::from_cep)?
+    })))
+}
+
+#[get("/v1/cep85/{contract_hash}/events-mode")]
+pub async fn cep85_events_mode(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &path, None)?;
+    let mode = client.events_mode().await.map_err(ApiError::from_cep)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "events_mode": mode.as_str(),
+        "events_mode_u8": u8::from(mode),
+    })))
+}
+
+#[get("/v1/cep85/{contract_hash}/number-of-minted-tokens")]
+pub async fn cep85_number_of_minted_tokens(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &path, None)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "number_of_minted_tokens": client
+            .number_of_minted_tokens()
+            .await
+            .map_err(ApiError::from_cep)?
+    })))
+}
+
+#[get("/v1/cep85/{contract_hash}/transfer-filter-contract")]
+pub async fn cep85_transfer_filter_contract(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &path, None)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "transfer_filter_contract": client
+            .transfer_filter_contract()
+            .await
+            .map_err(ApiError::from_cep)?
+    })))
+}
+
+#[get("/v1/cep85/{contract_hash}/transfer-filter-method")]
+pub async fn cep85_transfer_filter_method(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &path, None)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "transfer_filter_method": client
+            .transfer_filter_method()
+            .await
+            .map_err(ApiError::from_cep)?
+    })))
+}
+
+#[get("/v1/cep85/{contract_hash}/security-badge/{entity}")]
+pub async fn cep85_security_badge(
+    state: web::Data<AppState>,
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, ApiError> {
+    let (contract_hash, entity) = path.into_inner();
+    let mut client = client(&state)?;
+    bind_contract(client.core_mut(), &contract_hash, None)?;
+    let badge = client
+        .security_badge(&entity)
+        .await
+        .map_err(ApiError::from_cep)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "badge": badge.map(|b| b.as_str()),
+        "badge_u8": badge.map(|b| b as u8),
     })))
 }

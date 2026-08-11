@@ -73,6 +73,44 @@ pub fn bind_contract(
         .map_err(ApiError::from_cep)
 }
 
+/// Decode optional hex (`0x` optional) to bytes. Empty / missing → `None`.
+pub fn optional_hex_bytes(hex: Option<&str>) -> Result<Option<Vec<u8>>, ApiError> {
+    let Some(raw) = hex.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Ok(None);
+    };
+    let s = raw
+        .strip_prefix("0x")
+        .or_else(|| raw.strip_prefix("0X"))
+        .unwrap_or(raw);
+    if !s.len().is_multiple_of(2) {
+        return Err(ApiError::BadRequest(
+            "hex data must have even length".into(),
+        ));
+    }
+    let mut out = Vec::with_capacity(s.len() / 2);
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let hi = hex_nibble(bytes[i])?;
+        let lo = hex_nibble(bytes[i + 1])?;
+        out.push((hi << 4) | lo);
+        i += 2;
+    }
+    Ok(Some(out))
+}
+
+fn hex_nibble(b: u8) -> Result<u8, ApiError> {
+    match b {
+        b'0'..=b'9' => Ok(b - b'0'),
+        b'a'..=b'f' => Ok(b - b'a' + 10),
+        b'A'..=b'F' => Ok(b - b'A' + 10),
+        _ => Err(ApiError::BadRequest(format!(
+            "invalid hex digit {}",
+            b as char
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
