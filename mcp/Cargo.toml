@@ -2,6 +2,7 @@
 name = "ceps-rust-api-mcp"
 version = "1.0.0"
 edition = "2021"
+authors = ["Interchouette <contact@interchouette.net>"]
 rust-version = "1.85"
 license = "MIT"
 description = "MCP server for ceps-rust-api (stdio + Streamable HTTP)"
