@@ -31,7 +31,7 @@ FEATURES ?= ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
 CARGO_FEATURES := --features $(FEATURES)
 RUST_LOG ?= info
 
-CARGO := env -u CARGO_TARGET_DIR -u PLAYWRIGHT_BROWSERS_PATH cargo
+CARGO := cargo
 
 CLIPPY_FLAGS := -D warnings -D clippy::all
 

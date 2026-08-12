@@ -196,18 +196,8 @@ pub fn api_start() -> String {
         Ok(f) => f,
         Err(e) => return format!("cannot create api log: {e}"),
     };
-    let child = Command::new("env")
-        .args([
-            "-u",
-            "CARGO_TARGET_DIR",
-            "-u",
-            "PLAYWRIGHT_BROWSERS_PATH",
-            "cargo",
-            "run",
-            "-p",
-            "ceps-rust-api",
-            "--release",
-        ])
+    let child = Command::new("cargo")
+        .args(["run", "-p", "ceps-rust-api", "--release"])
         .current_dir(&root)
         .env("DOTENV_DISABLE", "1")
         .stdout(Stdio::from(log_file.try_clone().unwrap_or(log_file)))
