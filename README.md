@@ -63,7 +63,7 @@ make mcp-http   # Streamable HTTP on :4790 → http://127.0.0.1:4790/mcp
 ```
 
 ```bash
-env -u CARGO_TARGET_DIR -u PLAYWRIGHT_BROWSERS_PATH make build
+make build
 make verify-slices   # same feature slices as CI
 ```
 
