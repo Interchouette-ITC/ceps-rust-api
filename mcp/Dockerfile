@@ -1,4 +1,4 @@
-# ceps-rust-api-mcp — Streamable HTTP on :4790
+# ceps-rust-api-mcp - Streamable HTTP on :4790
 # Build context: mcp/
 
 ARG RUST_IMAGE=rust:slim-bookworm

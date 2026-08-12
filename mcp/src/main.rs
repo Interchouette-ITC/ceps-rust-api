@@ -1,4 +1,4 @@
-//! `ceps-rust-api-mcp` — MCP server (stdio by default, optional Streamable HTTP).
+//! `ceps-rust-api-mcp` - MCP server (stdio by default, optional Streamable HTTP).
 
 use anyhow::Result;
 use ceps_rust_api_mcp::server::{run, run_http, DEFAULT_HTTP_LISTEN};
