@@ -35,6 +35,29 @@ fn repo_root() -> String {
         .into_owned()
 }
 
+/// Parse JSON-RPC from a plain JSON body or Streamable HTTP SSE (`data: {...}`).
+fn json_rpc_from_body(body: &str) -> Value {
+    let trimmed = body.trim();
+    if let Ok(v) = serde_json::from_str::<Value>(trimmed) {
+        return v;
+    }
+    let mut last = None;
+    for line in body.lines() {
+        let line = line.trim();
+        let Some(data) = line.strip_prefix("data:") else {
+            continue;
+        };
+        let data = data.trim();
+        if data.is_empty() {
+            continue;
+        }
+        if let Ok(v) = serde_json::from_str::<Value>(data) {
+            last = Some(v);
+        }
+    }
+    last.unwrap_or_else(|| panic!("no JSON-RPC in body: {body}"))
+}
+
 #[tokio::test]
 async fn http_initialize_and_tools_list() {
     let bin = mcp_bin();
@@ -80,7 +103,8 @@ async fn http_initialize_and_tools_list() {
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("")
                 .to_string();
-            let body: Value = resp.json().await.expect("init json");
+            let init_text = resp.text().await.expect("init body");
+            let body = json_rpc_from_body(&init_text);
             assert_eq!(
                 body["result"]["serverInfo"]["name"], "ceps-rust-api",
                 "{body}"
@@ -116,7 +140,8 @@ async fn http_initialize_and_tools_list() {
                 .send()
                 .await
                 .expect("tools/list");
-            let tools_body: Value = tools_resp.json().await.expect("tools json");
+            let tools_text = tools_resp.text().await.expect("tools body");
+            let tools_body = json_rpc_from_body(&tools_text);
             let tools = tools_body["result"]["tools"]
                 .as_array()
                 .expect("tools array");

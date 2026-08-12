@@ -228,7 +228,7 @@ pub fn api_start() -> String {
 
 pub fn api_stop() -> String {
     if !api_pid_path().is_file() {
-        return "no api.pid — nothing to stop".into();
+        return "no api.pid - nothing to stop".into();
     }
     let pid = fs::read_to_string(api_pid_path())
         .unwrap_or_default()
