@@ -7,9 +7,6 @@ all-features = false
 [advisories]
 yanked = "warn"
 unmaintained = "workspace"
-ignore = [
-    { id = "RUSTSEC-2026-0258", reason = "transitive h2 via hyper/reqwest stacks pending lockfile bump" },
-]
 
 [licenses]
 unused-allowed-license = "allow"
