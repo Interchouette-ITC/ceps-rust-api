@@ -38,6 +38,7 @@ CLIPPY_FLAGS := -D warnings -D clippy::all
 .DEFAULT_GOAL := help
 
 .PHONY: help build build-release check test verify verify-slices lint format format-check clippy \
+	coverage coverage-summary coverage-html audit deny machete outdated \
 	docker-build docker-build-dev docker-run docker-run-kms docker-stop version-show run pem-ban \
 	export-local-keys run-local wasm-from-ceps \
 	docker-push-dev-hub docker-push-dev-ghcr-personal docker-push-dev-ghcr-itc docker-push-dev \
@@ -85,6 +86,36 @@ lint: format-check clippy pem-ban
 
 test: lint
 	$(CARGO) test -p ceps-rust-api $(CARGO_FEATURES) -- --nocapture
+
+COVERAGE_IGNORE := examples/|benches/|mcp/
+
+coverage:
+	mkdir -p coverage
+	RUSTUP_TOOLCHAIN=stable $(CARGO) llvm-cov -p ceps-rust-api --locked $(CARGO_FEATURES) --lcov \
+		--ignore-filename-regex '$(COVERAGE_IGNORE)' \
+		--output-path coverage/lcov.info
+
+coverage-summary:
+	RUSTUP_TOOLCHAIN=stable $(CARGO) llvm-cov -p ceps-rust-api --locked $(CARGO_FEATURES) --summary-only \
+		--ignore-filename-regex '$(COVERAGE_IGNORE)'
+
+coverage-html:
+	mkdir -p coverage
+	RUSTUP_TOOLCHAIN=stable $(CARGO) llvm-cov -p ceps-rust-api --locked $(CARGO_FEATURES) --html \
+		--ignore-filename-regex '$(COVERAGE_IGNORE)' \
+		--output-dir coverage/html
+
+audit:
+	$(CARGO) audit
+
+deny:
+	$(CARGO) deny check
+
+machete:
+	$(CARGO) machete
+
+outdated:
+	$(CARGO) outdated --workspace
 
 verify: lint test
 
