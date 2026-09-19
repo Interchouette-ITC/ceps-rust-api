@@ -5,3 +5,7 @@
 
 # llvm-cov output
 /coverage/
+
+# Generated rustdoc publish folder (keep README stub if present)
+/docs/api-rust/**
+!/docs/api-rust/README.md

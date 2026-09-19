@@ -1,0 +1,41 @@
+# GitHub Pages: rustdoc under docs/api-rust/.
+name: pages
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ceps-rust-api
+
+    steps:
+      - name: Checkout ceps-rust-api
+        uses: actions/checkout@v5
+        with:
+          path: ceps-rust-api
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ceps-rust-api
+
+      - name: Doc
+        run: make doc
+        env:
+          FEATURES: ceps-all,swagger-ui,tx-return,sign-local,sign-kms,chain-put
+
+      - name: Publish GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./ceps-rust-api/docs/api-rust
+          commit_message: "Publish rustdoc for ${{ github.ref_name }}"
