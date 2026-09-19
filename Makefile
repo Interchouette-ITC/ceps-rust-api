@@ -39,6 +39,7 @@ CLIPPY_FLAGS := -D warnings -D clippy::all
 
 .PHONY: help build build-release check test verify verify-slices lint format format-check clippy \
 	coverage coverage-summary coverage-html audit deny machete outdated \
+	doc doc-open doc-clean \
 	docker-build docker-build-dev docker-run docker-run-kms docker-stop version-show run pem-ban \
 	export-local-keys run-local wasm-from-ceps \
 	docker-push-dev-hub docker-push-dev-ghcr-personal docker-push-dev-ghcr-itc docker-push-dev \
@@ -49,13 +50,17 @@ CLIPPY_FLAGS := -D warnings -D clippy::all
 	mcp-docker-push-dev \
 	mcp-docker-push-release-hub mcp-docker-push-release-ghcr-personal mcp-docker-push-release-ghcr-itc \
 	mcp-docker-push-release mcp-http mcp-http-stop run-mcp run-mcp-http
-
 NCTL_CONTAINER ?= casper-nctl-2-docker-dev
 NCTL_USERS ?= 1 2 3
+
+# Prefer CARGO_TARGET_DIR when set (CI); else repo-local target/doc.
+DOC_OUT ?= $(if $(CARGO_TARGET_DIR),$(CARGO_TARGET_DIR)/doc,target/doc)
+DOC_CRATE ?= ceps_rust_api
 
 help:
 	@echo "ceps-rust-api targets"
 	@echo "  make build / test / verify / verify-slices / run"
+	@echo "  make doc / doc-open      rustdoc → docs/api-rust/"
 	@echo "  make wasm-from-ceps      # copy client tests/wasm into tests/wasm/"
 	@echo "  make export-local-keys   # print LOCAL_KEYS_JSON (NCTL users; lab only)"
 	@echo "  make run-local           # run with SIGN_BACKEND=local + exported keys"
@@ -63,7 +68,6 @@ help:
 	@echo "  make mcp-build / mcp-docker-build-dev / mcp-http / run-mcp"
 	@echo "  Features: FEATURES=$(FEATURES)"
 	@echo "  SIGN_BACKEND: none (default) | local (lab) | local-production | kms (recommended)"
-
 build:
 	$(CARGO) build -p ceps-rust-api $(CARGO_FEATURES)
 
@@ -117,8 +121,41 @@ machete:
 outdated:
 	$(CARGO) outdated --workspace
 
-verify: lint test
+doc:
+	RUSTDOCFLAGS='-D warnings' $(CARGO) doc -p ceps-rust-api --no-deps $(CARGO_FEATURES)
+	@test -d "$(DOC_OUT)/$(DOC_CRATE)" || (echo "missing $(DOC_OUT)/$(DOC_CRATE)"; exit 1)
+	@rm -rf docs/api-rust
+	@mkdir -p docs/api-rust
+	@cp -a "$(DOC_OUT)/." docs/api-rust/
+	@printf '%s\n' \
+		'<!DOCTYPE html>' \
+		'<html lang="en">' \
+		'<head>' \
+		'<meta charset="utf-8">' \
+		'<meta http-equiv="refresh" content="0; url=$(DOC_CRATE)/index.html">' \
+		'<title>ceps-rust-api - Rust API docs</title>' \
+		'<link rel="canonical" href="$(DOC_CRATE)/index.html">' \
+		'<script>location.replace("$(DOC_CRATE)/index.html");</script>' \
+		'</head>' \
+		'<body><p><a href="$(DOC_CRATE)/index.html">ceps-rust-api API documentation</a></p></body>' \
+		'</html>' \
+		> docs/api-rust/index.html
+	@touch docs/api-rust/.nojekyll
+	@echo "docs/api-rust/ updated - open docs/api-rust/index.html"
 
+doc-open: doc
+	xdg-open docs/api-rust/index.html >/dev/null 2>&1 || open docs/api-rust/index.html >/dev/null 2>&1 || true
+
+doc-clean:
+	rm -rf docs/api-rust
+	mkdir -p docs/api-rust
+	@printf '%s\n' \
+		'# Rust API documentation (rustdoc)' \
+		'' \
+		'Generate with `make doc`, then open [`index.html`](index.html).' \
+		> docs/api-rust/README.md
+
+verify: lint test
 # Same feature slices as CI (.github/workflows/ci.yml).
 verify-slices:
 	$(CARGO) test -p ceps-rust-api --no-default-features --features cep18,tx-return,swagger-ui -- --nocapture
