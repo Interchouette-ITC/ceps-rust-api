@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["HelloResult","hello_handler"]};

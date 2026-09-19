@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SubmitMode","WaitMode"],"fn":["build_transaction_params","finalize_call","put_signed_transaction"],"struct":["MutateEnvelope","PipelineOutcome","SignerRef"]};
