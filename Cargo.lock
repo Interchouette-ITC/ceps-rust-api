@@ -436,7 +436,7 @@ dependencies = [
 [[package]]
 name = "casper-rust-wasm-sdk"
 version = "2.2.2"
-source = "git+https://github.com/casper-ecosystem/casper-rust-wasm-sdk?branch=dev#d212a17ff343b17f7fc673b9d958382c18127ab1"
+source = "git+https://github.com/casper-ecosystem/casper-rust-wasm-sdk?branch=dev#cccf0a59b66fc41639495b2b7950d1b0545e1e59"
 dependencies = [
  "async-trait",
  "base16",
@@ -514,7 +514,7 @@ dependencies = [
 [[package]]
 name = "ceps-client"
 version = "1.0.0"
-source = "git+https://github.com/Interchouette-ITC/ceps-rust-ts-client?branch=dev#eec99203a4a71b19c65fc3b034def2046fa4504f"
+source = "git+https://github.com/Interchouette-ITC/ceps-rust-ts-client?branch=dev#301abe0c1645af55891482bf12e62c484bf3fbcf"
 dependencies = [
  "base64 0.23.1",
  "blake2 0.10.6",
