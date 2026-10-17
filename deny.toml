@@ -7,6 +7,12 @@ all-features = false
 [advisories]
 yanked = "warn"
 unmaintained = "workspace"
+ignore = [
+    # utoipa-swagger-ui 9 build-depends on zip 3; patched zip is >= 9.0.0.
+    { id = "RUSTSEC-2026-0367", reason = "zip 3 via utoipa-swagger-ui 9; wait for swagger-ui bump" },
+    { id = "RUSTSEC-2026-0368", reason = "zip 3 via utoipa-swagger-ui 9; wait for swagger-ui bump" },
+    { id = "RUSTSEC-2026-0369", reason = "zip 3 via utoipa-swagger-ui 9; wait for swagger-ui bump" },
+]
 
 [licenses]
 unused-allowed-license = "allow"
