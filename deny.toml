@@ -8,10 +8,8 @@ all-features = false
 yanked = "warn"
 unmaintained = "workspace"
 ignore = [
-    # utoipa-swagger-ui 9 build-depends on zip 3; patched zip is >= 9.0.0.
-    { id = "RUSTSEC-2026-0367", reason = "zip 3 via utoipa-swagger-ui 9; wait for swagger-ui bump" },
-    { id = "RUSTSEC-2026-0368", reason = "zip 3 via utoipa-swagger-ui 9; wait for swagger-ui bump" },
-    { id = "RUSTSEC-2026-0369", reason = "zip 3 via utoipa-swagger-ui 9; wait for swagger-ui bump" },
+    { id = "RUSTSEC-2026-0387", reason = "Temporarily accepted: casper-types 7.1.1 pins k256 0.13; upgrading crypto-bigint requires a compatible cryptography dependency migration." },
+    { id = "RUSTSEC-2025-0141", reason = "Transitive dependency of casper-binary-port 1.2.1; no safe drop-in upgrade. Reassess when Casper updates its binary-port dependency." },
 ]
 
 [licenses]
